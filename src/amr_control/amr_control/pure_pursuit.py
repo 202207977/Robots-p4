@@ -1,4 +1,5 @@
-import math 
+import math
+
 
 class PurePursuit:
     """Class to follow a path using a simple pure pursuit controller."""
@@ -14,7 +15,6 @@ class PurePursuit:
         self._dt: float = dt
         self._lookahead_distance: float = lookahead_distance
         self._path: list[tuple[float, float]] = []
-
 
     def compute_commands(self, x: float, y: float, theta: float) -> tuple[float, float]:
         """Pure pursuit controller implementation.
@@ -33,7 +33,7 @@ class PurePursuit:
 
         # Encontrar el punto más cercano
         closest_xy, closest_idx = self._find_closest_point(x, y)
-        
+
         # Encontrar el punto objetivo en la ruta usando la distancia de mirada adelante
         goal_x, goal_y = self._find_target_point(closest_xy, closest_idx)
 
@@ -50,7 +50,7 @@ class PurePursuit:
             return 0.0, w_max * (1 if alpha > 0 else -1)
 
         # Calcular la distancia al punto objetivo
-        distance = math.sqrt((goal_x - x)**2 + (goal_y - y)**2)
+        distance = math.sqrt((goal_x - x) ** 2 + (goal_y - y) ** 2)
 
         # Aplicar la ecuación de persecución pura para calcular omega
         v = min(v_max, distance)  # Reducir velocidad cerca del objetivo
@@ -58,7 +58,6 @@ class PurePursuit:
         w = min(w_max, gamma * v)
 
         return v, w
-
 
     @property
     def path(self) -> list[tuple[float, float]]:
@@ -85,11 +84,11 @@ class PurePursuit:
         # TODO: 4.9. Complete the function body (i.e., find closest_xy and closest_idx).
         closest_xy = (0.0, 0.0)
         closest_idx = 0
-        min_dist = float('inf')  # Inicializamos la distancia mínima con un valor muy grande
+        min_dist = float("inf")  # Inicializamos la distancia mínima con un valor muy grande
 
         # Iterar sobre todos los puntos de la ruta y calcular la distancia
         for idx, (path_x, path_y) in enumerate(self.path):
-            dist = math.sqrt((path_x - x) ** 2 + (path_y - y) ** 2) 
+            dist = math.sqrt((path_x - x) ** 2 + (path_y - y) ** 2)
 
             # Si encontramos una distancia menor, actualizamos el punto más cercano
             if dist < min_dist:
@@ -98,7 +97,7 @@ class PurePursuit:
                 closest_idx = idx
 
         return closest_xy, closest_idx
-        
+
     def _find_target_point(
         self, origin_xy: tuple[float, float], origin_idx: int
     ) -> tuple[float, float]:
@@ -113,37 +112,41 @@ class PurePursuit:
 
         """
         # TODO: 4.10. Complete the function body with your code (i.e., determine target_xy).
-        target_xy = (0.0, 0.0)
 
+        # Recortar el camino desde el índice actual
         path_segment = self._path[origin_idx:]
 
-        # Inicializamos el objetivo con el origen
-        target_xy = origin_xy 
-        previous_dist = math.sqrt((path_segment[0] - origin_xy[0]) ** 2 + (path_segment[0] - origin_xy[1]) ** 2) 
+        # Verificar que haya suficientes puntos en la ruta
+        if origin_idx >= len(path_segment) - 1:
+            return path_segment[-1]  # Si estamos en el último punto, devolverlo
 
+        # Inicializamos el objetivo con el origen y la distancia previa
+        previous_point = origin_xy
+        previous_dist = 0.0
 
         # Buscamos el lookahead point
         for i in range(1, len(path_segment)):
-
-            # Obtenemos el punto actual del camino 
+            # Obtenemos el punto actual del camino
             current_point = path_segment[i]
 
-            # Calculamos la distancia entre esos puntos
-            dist_current = math.sqrt((current_point[0] - origin_xy[0]) ** 2 + (current_point[1] - origin_xy[1]) ** 2) 
+            # Calcular la distancia acumulada desde el origen
+            dist_current = math.sqrt(
+                (current_point[0] - origin_xy[0]) ** 2 + (current_point[1] - origin_xy[1]) ** 2
+            )
 
-            # Vemos si es el punto
+            # Si encontramos un punto exacto, lo devolvemos
             if dist_current == self._lookahead_distance:
                 return current_point
 
-            # Vemos si la look ahead distance esta entre las dos distancias
-            if (self._lookahead_distance - previous_dist) * (self._lookahead_distance - dist_current) <= 0:
+            # Si el lookahead está entre previous_dist y dist_current, interpolamos
+            if (self._lookahead_distance - previous_dist) * (
+                self._lookahead_distance - dist_current
+            ) <= 0:
+                ratio = (self._lookahead_distance - previous_dist) / (dist_current - previous_dist)
+                target_x = previous_point[0] + ratio * (current_point[0] - previous_point[0])
+                target_y = previous_point[1] + ratio * (current_point[1] - previous_point[1])
+                return (target_x, target_y)
 
-                previous_point = path_segment[i-1]
-                direction = (current_point[0] - previous_point[0], current_point[1] - previous_point[1])
-                scaling_factor = self._lookahead_distance / dist_current
-                return (previous_point + direction[0] * scaling_factor, previous_point + direction[1] * scaling_factor) # se devuelve el punto que se encuentre a la lookahead distance
-            
-            # Actualizamos la distancia anterior
+            # Actualizamos la distancia y puntos anteriores
             previous_dist = dist_current
-
-                    
+            previous_point = current_point

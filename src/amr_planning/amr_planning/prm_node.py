@@ -8,6 +8,7 @@ from nav_msgs.msg import Path
 import os
 import time
 import traceback
+import math
 
 from amr_planning.prm import PRM
 
@@ -91,7 +92,7 @@ class PRMNode(LifecycleNode):
             self._path_publisher = self.create_publisher(
                 msg_type=Path, topic="/path", qos_profile=10
             )
-            
+
             # Subscribers
             self._subscriber_pose = self.create_subscription(
                 AmrPoseStamped, "pose", self._path_callback, 10
@@ -161,31 +162,54 @@ class PRMNode(LifecycleNode):
         # Crear un mensaje de tipo Path
         path_msg = Path()
 
-        # Establecer el header para el mensaje 
-        path_msg.header.stamp = self.get_clock().now().to_msg() 
-        path_msg.header.frame_id = "map"  
+        # Establecer el header para el mensaje
+        path_msg.header.stamp = self.get_clock().now().to_msg()
+        path_msg.header.frame_id = "map"
 
         # Crear los PoseStamped para cada punto en el path
-        for (x, y) in path:
+        for i in range(len(path)):
             pose_stamped = PoseStamped()
+
+            x, y = path[i]
 
             # Establecer la posición (x, y) y una orientación predeterminada (sin rotación)
             pose_stamped.pose.position.x = x
             pose_stamped.pose.position.y = y
             pose_stamped.pose.position.z = 0.0
 
-            # Establecer una orientación neutral (sin rotación)
+            # Calcular la orientación basada en la dirección al siguiente punto
+            if i < len(path) - 1:
+                next_x, next_y = path[i + 1]
+                theta = math.atan2(next_y - y, next_x - x)  # Ángulo en radianes
+
+                # Convertir de ángulo a cuaternión
+                qz = math.sin(theta / 2.0)
+                qw = math.cos(theta / 2.0)
+            else:
+                # Mantener la última orientación
+                qz = pose_stamped.pose.orientation.z
+                qw = pose_stamped.pose.orientation.w
+
             pose_stamped.pose.orientation.x = 0.0
             pose_stamped.pose.orientation.y = 0.0
-            pose_stamped.pose.orientation.z = 0.0
-            pose_stamped.pose.orientation.w = 1.0  # Orientación de identidad (sin rotación)
+            pose_stamped.pose.orientation.z = qz
+            pose_stamped.pose.orientation.w = qw
+
+            # Establecer una orientación neutral (sin rotación)
+            # pose_stamped.pose.orientation.x = 0.0
+            # pose_stamped.pose.orientation.y = 0.0
+            # pose_stamped.pose.orientation.z = 0.0
+            # pose_stamped.pose.orientation.w = 1.0  # Orientación de identidad (sin rotación)
 
             # Agregar el PoseStamped al mensaje de Path
             path_msg.poses.append(pose_stamped)
 
         # Publicar el mensaje de Path en el tópico
         self._path_publisher.publish(path_msg)
-        
+
+
+#
+
 
 def main(args=None):
     rclpy.init(args=args)

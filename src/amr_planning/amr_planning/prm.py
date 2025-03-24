@@ -5,8 +5,9 @@ import pytz
 import random
 import time
 import math
-from typing import List 
+from typing import List
 import heapq
+import copy
 
 # This try-except enables local debugging of the PRM class
 try:
@@ -85,8 +86,12 @@ class PRM:
         ancestors: dict[tuple[float, float], tuple[float, float]] = {}  # {(x, y: (x_prev, y_prev)}
 
         # TODO: 4.3. Complete the function body (i.e., replace the code below).
-        start_node = min(self._graph.keys(), key=lambda node: np.linalg.norm(np.array(node) - np.array(start)))
-        goal_node = min(self._graph.keys(), key=lambda node: np.linalg.norm(np.array(node) - np.array(goal)))
+        start_node = min(
+            self._graph.keys(), key=lambda node: np.linalg.norm(np.array(node) - np.array(start))
+        )
+        goal_node = min(
+            self._graph.keys(), key=lambda node: np.linalg.norm(np.array(node) - np.array(goal))
+        )
 
         open_list: dict[tuple[float, float], tuple[float, float]] = {start_node: (0, 0)}
         closed_set: set[tuple[float, float]] = set()
@@ -123,11 +128,9 @@ class PRM:
             raise ValueError("No path found between start and goal.")
 
         path: list[tuple[float, float]] = self._reconstruct_path(start_node, goal_node, ancestors)
-        
+
         return path
-    
-    
-    
+
     # def find_path(self, start: tuple[float, float], goal: tuple[float, float]) -> list[tuple[float, float]]:
     #     """Computes the shortest path from a start to a goal location using the A* algorithm.
 
@@ -152,7 +155,7 @@ class PRM:
     #     # Initialize the closed list
     #     closed_list = set()  # Contains visited nodes
     #     ancestors = {}  # To store the parent of each node for path reconstruction
-        
+
     #     # Store g values (costs) for each node
     #     g_values = {start: 0}
 
@@ -194,7 +197,6 @@ class PRM:
 
     #     return []  # Return an empty list if no path is found
 
-
     def _distance(self, node1: tuple[float, float], node2: tuple[float, float]) -> float:
         """Calculate the Euclidean distance between two points (node1 and node2).
 
@@ -208,12 +210,11 @@ class PRM:
         x1, y1 = node1
         x2, y2 = node2
         return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-    
+
     def _heuristic(self, node, goal):
         # Example heuristic: Euclidean distance
         return ((node[0] - goal[0]) ** 2 + (node[1] - goal[1]) ** 2) ** 0.5
 
-            
     @staticmethod
     def smooth_path(
         path: list[tuple[float, float]],
@@ -237,20 +238,20 @@ class PRM:
 
         """
         # TODO: 4.5. Complete the function body (i.e., load smoothed_path).
-        smoothed_path: list[tuple[float, float]] = []
-        smoothed_path = path[:]
-        
-        # Si se requieren puntos intermedios, agregarlos
+        smoothed_path: list[tuple[float, float]] = copy.deepcopy(path)
+
+        # Interpolación de puntos extra si es necesario
         if additional_smoothing_points > 0:
             extended_path = []
             for i in range(len(path) - 1):
-                extended_path.append(path[i])  # Agregar el punto actual
-                # Interpolar puntos adicionales entre los nodos
+                extended_path.append(path[i])  # Agregar punto original
                 for j in range(1, additional_smoothing_points + 1):
-                    x_interpolated = path[i][0] + (path[i + 1][0] - path[i][0]) * j / (additional_smoothing_points + 1)
-                    y_interpolated = path[i][1] + (path[i + 1][1] - path[i][1]) * j / (additional_smoothing_points + 1)
-                    extended_path.append((x_interpolated, y_interpolated))
-            extended_path.append(path[-1])  # Agregar el último punto
+                    alpha = j / (additional_smoothing_points + 1)  # Factor de interpolación
+                    x_interp = (1 - alpha) * path[i][0] + alpha * path[i + 1][0]
+                    y_interp = (1 - alpha) * path[i][1] + alpha * path[i + 1][1]
+                    extended_path.append((x_interp, y_interp))
+
+            extended_path.append(path[-1])  # Agregar último punto
             smoothed_path = extended_path
 
         # Descenso del gradiente para suavizar la ruta
@@ -258,29 +259,40 @@ class PRM:
         while change >= tolerance:
             change = 0
             new_path = smoothed_path[:]
-            
+
             for i in range(1, len(smoothed_path) - 1):  # No modificamos el primer ni el último nodo
                 # Calculamos la nueva posición de cada nodo
                 x, y = smoothed_path[i]
-                
+
                 # Cálculo de la suavización (promedio de los nodos adyacentes)
                 prev_x, prev_y = smoothed_path[i - 1]
                 next_x, next_y = smoothed_path[i + 1]
 
                 # Suavización basada en el gradiente
-                new_x = x + smooth_weight * (prev_x + next_x - 2 * x) - data_weight * (x - prev_x)
-                new_y = y + smooth_weight * (prev_y + next_y - 2 * y) - data_weight * (y - prev_y)
+                new_x = (
+                    x
+                    + data_weight * (prev_x + next_x - 2 * x)
+                    + smooth_weight * (next_x - prev_x) / 2
+                )
+                new_y = (
+                    y
+                    + data_weight * (prev_y + next_y - 2 * y)
+                    + smooth_weight * (next_y - prev_y) / 2
+                )
+
+                new_x = round(new_x, 8)
+                new_y = round(new_y, 8)
 
                 # Calculamos la diferencia entre la nueva y la antigua posición
                 change += math.sqrt((new_x - x) ** 2 + (new_y - y) ** 2)
 
                 # Actualizamos el nodo
                 new_path[i] = (new_x, new_y)
-            
+
+            change = change / (len(smoothed_path) - 2)  # Normalizamos el cambio
             smoothed_path = new_path  # Actualizamos la ruta
 
         return smoothed_path
-        
 
     def plot(
         self,
@@ -424,7 +436,7 @@ class PRM:
                         graph[node_b].append(node_a)
 
         return graph
-        
+
     def _create_graph(
         self,
         use_grid: bool = False,
@@ -485,7 +497,7 @@ class PRM:
                 y = np.random.uniform(min_y, max_y)
                 if not self._map.contains((x, y)):
                     graph[(x, y)] = []
-    
+
         return graph
 
     def _reconstruct_path(
@@ -522,7 +534,6 @@ class PRM:
         # Invertir la lista para obtener el camino desde el inicio hasta el destino
         path.reverse()
 
-        
         return path
 
 
