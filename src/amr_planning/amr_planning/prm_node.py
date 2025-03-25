@@ -195,7 +195,7 @@ class PRMNode(LifecycleNode):
             pose_stamped.pose.orientation.z = qz
             pose_stamped.pose.orientation.w = qw
 
-            # Establecer una orientación neutral (sin rotación)
+            # # Establecer una orientación neutral (sin rotación)
             # pose_stamped.pose.orientation.x = 0.0
             # pose_stamped.pose.orientation.y = 0.0
             # pose_stamped.pose.orientation.z = 0.0

@@ -30,7 +30,7 @@ class PRM:
         grid_size=0.1,
         connection_distance: float = 0.15,
         sensor_range_max: float = 8.0,
-    ):
+        ):
         """Probabilistic roadmap (PRM) class initializer.
 
         Args:
@@ -63,9 +63,10 @@ class PRM:
             "%Y-%m-%d_%H-%M-%S"
         )
 
+
     def find_path(
         self, start: tuple[float, float], goal: tuple[float, float]
-    ) -> list[tuple[float, float]]:
+        ) -> list[tuple[float, float]]:
         """Computes the shortest path from a start to a goal location using the A* algorithm.
 
         Args:
@@ -83,119 +84,69 @@ class PRM:
         if not self._map.contains(goal):
             raise ValueError("Goal location is outside the environment.")
 
-        ancestors: dict[tuple[float, float], tuple[float, float]] = {}  # {(x, y: (x_prev, y_prev)}
+        ancestors: dict[tuple[float, float], tuple[float, float]] = {}  # {(x, y): (x_prev, y_prev)}
 
         # TODO: 4.3. Complete the function body (i.e., replace the code below).
-        start_node = min(
-            self._graph.keys(), key=lambda node: np.linalg.norm(np.array(node) - np.array(start))
-        )
-        goal_node = min(
-            self._graph.keys(), key=lambda node: np.linalg.norm(np.array(node) - np.array(goal))
-        )
+        
+        # 1. Find the closest nodes to the start and goal points
+        posibles = self._graph.keys()
+        node_start = min(posibles, key = lambda k: self._distance(start, k))
+        node_goal = min(posibles, key = lambda k: self._distance(k, goal))
 
-        open_list: dict[tuple[float, float], tuple[float, float]] = {start_node: (0, 0)}
-        closed_set: set[tuple[float, float]] = set()
+        # 2. Initialize the open and closed lists
+        lista_abierta = {node_start: (self._distance(node_start, node_goal), 0)} # {(node): (f, g)}
+        lista_cerrada = set()
+
         found = False
+        while lista_abierta:
 
-        while open_list:
-            node = min(open_list, key=lambda k: open_list[k][0])
-            g_current = open_list[node][1]
-            del open_list[node]
+            # 3a. Get the node with the lowest f-value
+            nodo_expandido = min(lista_abierta, key=lambda k: lista_abierta[k][0]) 
 
-            if node == goal_node:
-                if start_node != start:
-                    ancestors[start_node] = start
-                if goal_node != goal:
-                    ancestors[goal] = goal_node
+            # 3b. Get the node's g-value
+            g_value = lista_abierta[nodo_expandido][1]
+            del lista_abierta[nodo_expandido]
+
+            # Comprobamos si es el nodo objetivo:
+            if nodo_expandido == node_goal:
                 found = True
                 break
 
-            for neighbor in self._graph[node]:
-                if neighbor in closed_set:
+            # 3c. Añadir nodos abiertos a la lista
+            for nodo in self._graph[nodo_expandido]:
+                if nodo in lista_cerrada:
                     continue
 
-                g_new = g_current + np.linalg.norm(np.array(neighbor) - np.array(node))
-                h = np.linalg.norm(np.array(neighbor) - np.array(goal_node))
-                f_new = g_new + h
+                new_g = g_value + self._distance(nodo_expandido, nodo)
+                h = self._distance(nodo, node_goal)
+                new_f = new_g + h
 
-                if neighbor not in open_list or g_new < open_list[neighbor][1]:
-                    open_list[neighbor] = (f_new, g_new)
-                    ancestors[neighbor] = node
+                # Si no se ha alcanzado el nodo todavia
+                if not nodo in lista_abierta:
+                    lista_abierta[nodo] = (new_f, new_g)
+                    ancestors[nodo] = nodo_expandido
+                
+                else:
+                    old_g = lista_abierta[nodo][1]
 
-            closed_set.add(node)
+                    # Si ya se había alcanzado, se actualiza si el camino ahora es más corto
+                    if old_g > new_g:
+                        lista_abierta[nodo] = (new_f, new_g)
+                        ancestors[nodo] = nodo_expandido
+            
+            lista_cerrada.add(nodo_expandido)
 
         if not found:
-            raise ValueError("No path found between start and goal.")
+            return []
 
-        path: list[tuple[float, float]] = self._reconstruct_path(start_node, goal_node, ancestors)
+        # If we reached the goal, reconstruct the path
+        if node_start != start:
+            ancestors[node_start] = start
+        if node_goal != goal:
+            ancestors[goal] = node_goal
 
-        return path
+        return self._reconstruct_path(node_start, node_goal, ancestors)
 
-    # def find_path(self, start: tuple[float, float], goal: tuple[float, float]) -> list[tuple[float, float]]:
-    #     """Computes the shortest path from a start to a goal location using the A* algorithm.
-
-    #     Args:
-    #         start: Initial location in (x, y) [m] format.
-    #         goal: Destination in (x, y) [m] format.
-
-    #     Returns:
-    #         Path to the destination. The first value corresponds to the initial location.
-    #     """
-    #     # Check if the target points are valid
-    #     if not self._map.contains(start):
-    #         raise ValueError("Start location is outside the environment.")
-
-    #     if not self._map.contains(goal):
-    #         raise ValueError("Goal location is outside the environment.")
-
-    #     # Initialize the open list (using a priority queue)
-    #     open_list = []
-    #     heapq.heappush(open_list, (self._heuristic(start, goal), 0, start))  # (f, g, node)
-
-    #     # Initialize the closed list
-    #     closed_list = set()  # Contains visited nodes
-    #     ancestors = {}  # To store the parent of each node for path reconstruction
-
-    #     # Store g values (costs) for each node
-    #     g_values = {start: 0}
-
-    #     # Set to track nodes in the heap (open_list)
-    #     in_heap = set([start])
-
-    #     while open_list:
-    #         # Get the node with the lowest f-value (min open_list)
-    #         f, g, current_node = heapq.heappop(open_list)
-
-    #         # If we reached the goal, reconstruct the path
-    #         if current_node == goal:
-    #             return self._reconstruct_path(start, goal, ancestors)
-
-    #         # Add current node to the closed list
-    #         closed_list.add(current_node)
-
-    #         # Expand neighbors
-    #         for neighbor in self._graph[current_node]:
-    #             # If the neighbor is already in the closed list, skip it
-    #             if neighbor in closed_list:
-    #                 continue
-
-    #             # Calculate the tentative g score (cost to reach the neighbor)
-    #             tentative_g_score = g + self._distance(current_node, neighbor)
-
-    #             # If the neighbor is not in open list or we found a better path, update it
-    #             if neighbor not in g_values or tentative_g_score < g_values[neighbor]:
-    #                 g_values[neighbor] = tentative_g_score
-    #                 f_score = tentative_g_score + self._heuristic(neighbor, goal)
-
-    #                 # If neighbor is not already in the heap, push it
-    #                 if neighbor not in in_heap:
-    #                     heapq.heappush(open_list, (f_score, tentative_g_score, neighbor))
-    #                     in_heap.add(neighbor)
-
-    #                 # Update the parent (ancestor) for path reconstruction
-    #                 ancestors[neighbor] = current_node
-
-    #     return []  # Return an empty list if no path is found
 
     def _distance(self, node1: tuple[float, float], node2: tuple[float, float]) -> float:
         """Calculate the Euclidean distance between two points (node1 and node2).
@@ -211,9 +162,6 @@ class PRM:
         x2, y2 = node2
         return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
-    def _heuristic(self, node, goal):
-        # Example heuristic: Euclidean distance
-        return ((node[0] - goal[0]) ** 2 + (node[1] - goal[1]) ** 2) ** 0.5
 
     @staticmethod
     def smooth_path(
@@ -222,7 +170,7 @@ class PRM:
         smooth_weight: float = 0.3,
         additional_smoothing_points: int = 0,
         tolerance: float = 1e-6,
-    ) -> list[tuple[float, float]]:
+        ) -> list[tuple[float, float]]:
         """Computes a smooth path from a piecewise linear path.
 
         Args:
@@ -238,6 +186,7 @@ class PRM:
 
         """
         # TODO: 4.5. Complete the function body (i.e., load smoothed_path).
+        # return path
         smoothed_path: list[tuple[float, float]] = copy.deepcopy(path)
 
         # Interpolación de puntos extra si es necesario
@@ -245,61 +194,66 @@ class PRM:
             extended_path = []
             for i in range(len(path) - 1):
                 extended_path.append(path[i])  # Agregar punto original
+
                 for j in range(1, additional_smoothing_points + 1):
-                    alpha = j / (additional_smoothing_points + 1)  # Factor de interpolación
-                    x_interp = (1 - alpha) * path[i][0] + alpha * path[i + 1][0]
-                    y_interp = (1 - alpha) * path[i][1] + alpha * path[i + 1][1]
-                    extended_path.append((x_interp, y_interp))
+                    alpha = j / (additional_smoothing_points + 1)
+                    x_interpolated = path[i][0] + (path[i + 1][0] - path[i][0]) * alpha
+                    y_interpolated = path[i][1] + (path[i + 1][1] - path[i][1]) * alpha
+
+                    extended_path.append((x_interpolated, y_interpolated))
 
             extended_path.append(path[-1])  # Agregar último punto
             smoothed_path = extended_path
 
+        non_smoothed_path = copy.deepcopy(smoothed_path)
+
         # Descenso del gradiente para suavizar la ruta
-        change = tolerance  # Inicializamos con un valor mayor al umbral
+        new_path = copy.deepcopy(smoothed_path)
+        change =  float('inf') # Inicializamos con un valor mayor al umbral
         while change >= tolerance:
             change = 0
-            new_path = smoothed_path[:]
-
             for i in range(1, len(smoothed_path) - 1):  # No modificamos el primer ni el último nodo
+                x, y = non_smoothed_path[i]
+
                 # Calculamos la nueva posición de cada nodo
-                x, y = smoothed_path[i]
+                curr_x, curr_y = smoothed_path[i]
 
                 # Cálculo de la suavización (promedio de los nodos adyacentes)
                 prev_x, prev_y = smoothed_path[i - 1]
                 next_x, next_y = smoothed_path[i + 1]
 
                 # Suavización basada en el gradiente
-                new_x = (
-                    x
-                    + data_weight * (prev_x + next_x - 2 * x)
-                    + smooth_weight * (next_x - prev_x) / 2
-                )
-                new_y = (
-                    y
-                    + data_weight * (prev_y + next_y - 2 * y)
-                    + smooth_weight * (next_y - prev_y) / 2
-                )
+                # new_x = (
+                #     x
+                #     + data_weight * (prev_x + next_x - 2 * x)
+                #     + smooth_weight * (next_x - prev_x) / 2
+                # )
+                # new_y = (
+                #     y
+                #     + data_weight * (prev_y + next_y - 2 * y)
+                #     + smooth_weight * (next_y - prev_y) / 2
+                # )
 
-                new_x = round(new_x, 8)
-                new_y = round(new_y, 8)
-
-                # Calculamos la diferencia entre la nueva y la antigua posición
-                change += math.sqrt((new_x - x) ** 2 + (new_y - y) ** 2)
+                new_x = x + data_weight * (x-curr_x) + smooth_weight * (prev_y + next_y - 2 * curr_x)
+                new_y = y + data_weight * (x-curr_y) + smooth_weight * (prev_y + next_y - 2 * curr_y)
 
                 # Actualizamos el nodo
-                new_path[i] = (new_x, new_y)
+                smoothed_path[i] = (new_x, new_y)
 
-            change = change / (len(smoothed_path) - 2)  # Normalizamos el cambio
-            smoothed_path = new_path  # Actualizamos la ruta
+                # Calculamos la diferencia entre la nueva y la antigua posición
+                change += math.sqrt((new_x - curr_x) ** 2 + (new_y - curr_y) ** 2)
+
+            # smoothed_path = np.copy(new_path)  # Actualizamos la ruta
 
         return smoothed_path
+
 
     def plot(
         self,
         axes,
         path: list[tuple[float, float]] = (),
         smoothed_path: list[tuple[float, float]] = (),
-    ):
+        ):
         """Draws particles.
 
         Args:
@@ -358,7 +312,7 @@ class PRM:
         block: bool = False,
         save_figure: bool = False,
         save_dir: str = "images",
-    ):
+        ):
         """Displays the current particle set on the map.
 
         Args:
@@ -403,7 +357,7 @@ class PRM:
         self,
         graph: dict[tuple[float, float], list[tuple[float, float]]],
         connection_distance: float = 0.15,
-    ) -> dict[tuple[float, float], list[tuple[float, float]]]:
+        ) -> dict[tuple[float, float], list[tuple[float, float]]]:
         """Connects every generated node with all the nodes that are closer than a given threshold.
 
         Args:
@@ -421,16 +375,20 @@ class PRM:
         for i, node_a in enumerate(nodes):
             # Iterar sobre los nodos restantes para comprobar conexiones
             for j, node_b in enumerate(nodes):
+                
+                # No es necesario comparar el nodo con sí mismo ni con anteriores
                 if i >= j:
-                    continue  # No es necesario comparar el nodo con sí mismo ni con anteriores
+                    continue  
 
                 # Calcular la distancia entre los nodos
-                dist = ((node_a[0] - node_b[0]) ** 2 + (node_a[1] - node_b[1]) ** 2) ** 0.5
+                dist = self._distance(node_a, node_b)
 
                 # Si la distancia es menor o igual al umbral
                 if dist <= connection_distance:
+                    
                     # Verificar si la línea entre los dos nodos cruza algún obstáculo
                     if not self._map.crosses([node_a, node_b]):
+                        
                         # Si no cruza, añadir la conexión en ambas direcciones
                         graph[node_a].append(node_b)
                         graph[node_b].append(node_a)
@@ -443,7 +401,7 @@ class PRM:
         node_count: int = 50,
         grid_size=0.1,
         connection_distance: float = 0.15,
-    ) -> dict[tuple[float, float], list[tuple[float, float]]]:
+        ) -> dict[tuple[float, float], list[tuple[float, float]]]:
         """Creates a roadmap as a graph with edges connecting the closest nodes.
 
         Args:
@@ -464,7 +422,7 @@ class PRM:
 
     def _generate_nodes(
         self, use_grid: bool = False, node_count: int = 50, grid_size=0.1
-    ) -> dict[tuple[float, float], list[tuple[float, float]]]:
+        ) -> dict[tuple[float, float], list[tuple[float, float]]]:
         """Creates a set of valid nodes to build a roadmap with.
 
         Args:
@@ -488,24 +446,25 @@ class PRM:
 
             for x in x_vals:
                 for y in y_vals:
-                    if not self._map.contains((x, y)):
+                    if self._map.contains((x, y)):
                         graph[(x, y)] = []
 
         else:
             while len(graph) < node_count:
                 x = np.random.uniform(min_x, max_x)
                 y = np.random.uniform(min_y, max_y)
-                if not self._map.contains((x, y)):
+                if self._map.contains((x, y)):
                     graph[(x, y)] = []
 
         return graph
+
 
     def _reconstruct_path(
         self,
         start: tuple[float, float],
         goal: tuple[float, float],
         ancestors: dict[tuple[int, int], tuple[int, int]],
-    ) -> list[tuple[float, float]]:
+        ) -> list[tuple[float, float]]:
         """Computes the path from the start to the goal given the ancestors of a search algorithm.
 
         Args:

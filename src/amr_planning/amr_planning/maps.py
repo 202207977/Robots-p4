@@ -474,3 +474,6 @@ if __name__ == "__main__":
     m = Map(map_path, sensor_range=8.0, safety_distance=0.08)
     m.show(title=map_name, figure_number=1, block=False, figure_size=(8, 8), save_figure=True)
     m.show_regions(title=map_name, figure_number=2, figure_size=(8, 8), save_figure=True)
+
+
+
