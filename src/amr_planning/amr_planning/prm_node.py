@@ -177,30 +177,6 @@ class PRMNode(LifecycleNode):
             pose_stamped.pose.position.y = y
             pose_stamped.pose.position.z = 0.0
 
-            # Calcular la orientación basada en la dirección al siguiente punto
-            if i < len(path) - 1:
-                next_x, next_y = path[i + 1]
-                theta = math.atan2(next_y - y, next_x - x)  # Ángulo en radianes
-
-                # Convertir de ángulo a cuaternión
-                qz = math.sin(theta / 2.0)
-                qw = math.cos(theta / 2.0)
-            else:
-                # Mantener la última orientación
-                qz = pose_stamped.pose.orientation.z
-                qw = pose_stamped.pose.orientation.w
-
-            pose_stamped.pose.orientation.x = 0.0
-            pose_stamped.pose.orientation.y = 0.0
-            pose_stamped.pose.orientation.z = qz
-            pose_stamped.pose.orientation.w = qw
-
-            # # Establecer una orientación neutral (sin rotación)
-            # pose_stamped.pose.orientation.x = 0.0
-            # pose_stamped.pose.orientation.y = 0.0
-            # pose_stamped.pose.orientation.z = 0.0
-            # pose_stamped.pose.orientation.w = 1.0  # Orientación de identidad (sin rotación)
-
             # Agregar el PoseStamped al mensaje de Path
             path_msg.poses.append(pose_stamped)
 

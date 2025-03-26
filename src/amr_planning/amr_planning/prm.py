@@ -97,7 +97,6 @@ class PRM:
         lista_abierta = {node_start: (self._distance(node_start, node_goal), 0)} # {(node): (f, g)}
         lista_cerrada = set()
 
-        found = False
         while lista_abierta:
 
             # 3a. Get the node with the lowest f-value
@@ -109,8 +108,14 @@ class PRM:
 
             # Comprobamos si es el nodo objetivo:
             if nodo_expandido == node_goal:
-                found = True
-                break
+
+                # Si se ha alcanzado el objetivo, se reconstruye el path
+                if node_start != start:
+                    ancestors[node_start] = start
+                if node_goal != goal:
+                    ancestors[goal] = node_goal
+
+                return self._reconstruct_path(node_start, node_goal, ancestors)
 
             # 3c. Añadir nodos abiertos a la lista
             for nodo in self._graph[nodo_expandido]:
@@ -136,16 +141,8 @@ class PRM:
             
             lista_cerrada.add(nodo_expandido)
 
-        if not found:
-            return []
-
-        # If we reached the goal, reconstruct the path
-        if node_start != start:
-            ancestors[node_start] = start
-        if node_goal != goal:
-            ancestors[goal] = node_goal
-
-        return self._reconstruct_path(node_start, node_goal, ancestors)
+        # Si no se ha encontrado el goal
+        raise ValueError("Enable to find a path between start and goal.")
 
 
     def _distance(self, node1: tuple[float, float], node2: tuple[float, float]) -> float:
@@ -186,8 +183,8 @@ class PRM:
 
         """
         # TODO: 4.5. Complete the function body (i.e., load smoothed_path).
-        # return path
-        smoothed_path: list[tuple[float, float]] = copy.deepcopy(path)
+        
+        original_path: list[tuple[float, float]] = copy.deepcopy(path)
 
         # Interpolación de puntos extra si es necesario
         if additional_smoothing_points > 0:
@@ -203,17 +200,15 @@ class PRM:
                     extended_path.append((x_interpolated, y_interpolated))
 
             extended_path.append(path[-1])  # Agregar último punto
-            smoothed_path = extended_path
-
-        non_smoothed_path = copy.deepcopy(smoothed_path)
+            original_path = copy.deepcopy(extended_path)
 
         # Descenso del gradiente para suavizar la ruta
-        new_path = copy.deepcopy(smoothed_path)
+        smoothed_path = copy.deepcopy(original_path)
         change =  float('inf') # Inicializamos con un valor mayor al umbral
         while change >= tolerance:
             change = 0
             for i in range(1, len(smoothed_path) - 1):  # No modificamos el primer ni el último nodo
-                x, y = non_smoothed_path[i]
+                x, y = original_path[i]
 
                 # Calculamos la nueva posición de cada nodo
                 curr_x, curr_y = smoothed_path[i]
@@ -223,27 +218,14 @@ class PRM:
                 next_x, next_y = smoothed_path[i + 1]
 
                 # Suavización basada en el gradiente
-                # new_x = (
-                #     x
-                #     + data_weight * (prev_x + next_x - 2 * x)
-                #     + smooth_weight * (next_x - prev_x) / 2
-                # )
-                # new_y = (
-                #     y
-                #     + data_weight * (prev_y + next_y - 2 * y)
-                #     + smooth_weight * (next_y - prev_y) / 2
-                # )
-
-                new_x = x + data_weight * (x-curr_x) + smooth_weight * (prev_y + next_y - 2 * curr_x)
-                new_y = y + data_weight * (x-curr_y) + smooth_weight * (prev_y + next_y - 2 * curr_y)
+                new_x = curr_x + data_weight * (x-curr_x) + smooth_weight * (prev_x + next_x - 2 * curr_x)
+                new_y = curr_y + data_weight * (y-curr_y) + smooth_weight * (prev_y + next_y - 2 * curr_y)
 
                 # Actualizamos el nodo
                 smoothed_path[i] = (new_x, new_y)
 
                 # Calculamos la diferencia entre la nueva y la antigua posición
                 change += math.sqrt((new_x - curr_x) ** 2 + (new_y - curr_y) ** 2)
-
-            # smoothed_path = np.copy(new_path)  # Actualizamos la ruta
 
         return smoothed_path
 
@@ -303,6 +285,7 @@ class PRM:
 
         return axes
 
+
     def show(
         self,
         title: str = "",
@@ -353,6 +336,7 @@ class PRM:
             file_path = os.path.join(save_path, file_name)
             figure.savefig(file_path)
 
+
     def _connect_nodes(
         self,
         graph: dict[tuple[float, float], list[tuple[float, float]]],
@@ -395,6 +379,7 @@ class PRM:
 
         return graph
 
+
     def _create_graph(
         self,
         use_grid: bool = False,
@@ -419,6 +404,7 @@ class PRM:
         graph = self._connect_nodes(graph, connection_distance)
 
         return graph
+
 
     def _generate_nodes(
         self, use_grid: bool = False, node_count: int = 50, grid_size=0.1
@@ -501,7 +487,7 @@ if __name__ == "__main__":
     map_path = os.path.realpath(
         os.path.join(os.path.dirname(__file__), "..", "maps", map_name + ".json")
     )
-
+        
     # Create the roadmap
     start_time = time.perf_counter()
     prm = PRM(map_path, use_grid=True, node_count=250, grid_size=0.1, connection_distance=0.15)
@@ -526,3 +512,4 @@ if __name__ == "__main__":
     print(f"Smoothing time: {smoothing_time:1.3f} s")
 
     prm.show(path=path, smoothed_path=smoothed_path, save_figure=True)
+

@@ -11,7 +11,7 @@ def generate_launch_description():
 
     particles = 100
     global_localization = False
-    start_sigma = (0.1, 0.1, math.radians(5))
+    start_sigma = (0.05, 0.05, math.radians(5))
     sigma_v = 0.05
     sigma_w = 0.1
     sigma_z = 0.2
@@ -52,7 +52,7 @@ def generate_launch_description():
                 "goal": goal,
                 "grid_size": 0.1,
                 "node_count": 250,
-                "obstacle_safety_distance": 0.12,  # 0.08,
+                "obstacle_safety_distance": 0.14,  # 0.08,
                 "smoothing_additional_points": 3,
                 "smoothing_data_weight": 0.1,
                 "smoothing_smooth_weight": 0.25,
@@ -69,7 +69,7 @@ def generate_launch_description():
         namespace="",
         output="screen",
         arguments=["--ros-args", "--log-level", "WARN"],
-        parameters=[{"lookahead_distance": 0.3}],
+        parameters=[{"lookahead_distance": 0.25}],
     )
 
     coppeliasim_node = LifecycleNode(
@@ -78,7 +78,7 @@ def generate_launch_description():
         name="coppeliasim",
         namespace="",
         output="screen",
-        arguments=["--ros-args", "--log-level", "WARN"],
+        arguments=["--ros-args", "--log-level", "INFO"],
         parameters=[
             {
                 "enable_localization": True,
