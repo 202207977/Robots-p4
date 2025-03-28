@@ -28,38 +28,25 @@ class PurePursuit:
             v: Linear velocity [m/s].
             w: Angular velocity [rad/s].
         """
+
+        # TODO: 4.11. Complete the function body with your code (i.e., compute v and w).
+      
+        # Avoid issues if the path is not defined
         if not self.path:
-            return 0.0, 0.0  # Evitar problemas si la ruta no está definida
+            return 0.0, 0.0
 
-        # Encontrar el punto más cercano
-        closest_xy, closest_idx = self._find_closest_point(x, y)
+        # Find the closest point on the path
+        _, closest_idx = self._find_closest_point(x, y)
 
-        # Encontrar el punto objetivo en la ruta usando la distancia de mirada adelante
+        # Find the target point on the path using the lookahead distance
         goal_x, goal_y = self._find_target_point((x, y), closest_idx)
 
-        # Parámetros del robot
-        v_max = 0.5  # Velocidad máxima lineal [m/s]
-        w_max = 1.0  # Velocidad máxima angular [rad/s]
-
-        # Calcular el ángulo de error con respecto al punto objetivo
+        # Calculate the error angle with respect to the target point
         alpha = math.atan2(goal_y - y, goal_x - x) - theta
 
-        print(goal_x, goal_y, alpha, theta, closest_idx, closest_xy, flush=True)
-
-        # alpha = math.atan2(math.sin(alpha), math.cos(alpha))  # Normalización entre -pi y pi
-
-        # Si el error angular es grande, girar en el sitio
-        # if abs(alpha) > math.pi / 4:
-        #     return 0.0, w_max * (1 if alpha > 0 else -1)
-
-        # Calcular la distancia al punto objetivo
-        # distance = math.sqrt((goal_x - x) ** 2 + (goal_y - y) ** 2)
-
-        # Aplicar la ecuación de persecución pura para calcular omega
+        # Apply the pure pursuit equation to compute omega
         v = 0.15
-        # v = min(v_max, distance)  # Reducir velocidad cerca del objetivo
-        w = 2 * v * math.sin(alpha) / self._lookahead_distance  # Curvatura
-        # w = min(w_max, gamma * v)
+        w = 2 * v * math.sin(alpha) / self._lookahead_distance  # Curvature
 
         return v, w
 

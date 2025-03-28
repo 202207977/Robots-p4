@@ -75,6 +75,8 @@ class PurePursuitNode(LifecycleNode):
             pose_msg: Message containing the estimated robot pose.
 
         """
+
+  
         if pose_msg.localized:
             # Parse pose
             x = pose_msg.pose.position.x
