@@ -45,6 +45,7 @@ class PurePursuit:
         alpha = math.atan2(goal_y - y, goal_x - x) - theta
 
         print(goal_x, goal_y, alpha, theta, closest_idx, closest_xy, flush=True)
+
         # alpha = math.atan2(math.sin(alpha), math.cos(alpha))  # Normalización entre -pi y pi
 
         # Si el error angular es grande, girar en el sitio
@@ -87,13 +88,13 @@ class PurePursuit:
         # TODO: 4.9. Complete the function body (i.e., find closest_xy and closest_idx).
         closest_xy = (0.0, 0.0)
         closest_idx = 0
-        min_dist = float("inf")  # Inicializamos la distancia mínima con un valor muy grande
+        min_dist = float("inf")  # Initialize minimum distance to a high value
 
-        # Iterar sobre todos los puntos de la ruta y calcular la distancia
+        # Iterate over the points in the path and calculate distance 
         for idx, (path_x, path_y) in enumerate(self._path):
             dist = math.sqrt((path_x - x) ** 2 + (path_y - y) ** 2)
 
-            # Si encontramos una distancia menor, actualizamos el punto más cercano
+            # If we find a distance smaller than the minimum, update closest point
             if dist < min_dist:
                 min_dist = dist
                 closest_xy = (path_x, path_y)
@@ -135,22 +136,5 @@ class PurePursuit:
 
             if dist_current >= self._lookahead_distance:
                 return current_point
-
-            # # Si encontramos un punto exacto, lo devolvemos
-            # if dist_current == self._lookahead_distance:
-            #     return current_point
-
-            # # Si el lookahead está entre previous_dist y dist_current, interpolamos
-            # if (self._lookahead_distance - previous_dist) * (
-            #     self._lookahead_distance - dist_current
-            # ) <= 0:
-            #     ratio = (self._lookahead_distance - previous_dist) / (dist_current - previous_dist)
-            #     target_x = previous_point[0] + ratio * (current_point[0] - previous_point[0])
-            #     target_y = previous_point[1] + ratio * (current_point[1] - previous_point[1])
-            #     return (target_x, target_y)
-
-            # # Actualizamos la distancia y puntos anteriores
-            # previous_dist = dist_current
-            # previous_point = current_point
 
         return path_segment[-1]

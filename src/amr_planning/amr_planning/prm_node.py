@@ -159,32 +159,31 @@ class PRMNode(LifecycleNode):
 
         """
         # TODO: 4.7. Complete the function body with your code (i.e., replace the pass statement).
-        # Crear un mensaje de tipo Path
+
+        # Create new Path message
         path_msg = Path()
 
-        # Establecer el header para el mensaje
+        # Set the header for the message 
         path_msg.header.stamp = self.get_clock().now().to_msg()
         path_msg.header.frame_id = "map"
 
-        # Crear los PoseStamped para cada punto en el path
+        # Create PoseStamped for each of the points in the path 
         for i in range(len(path)):
             pose_stamped = PoseStamped()
 
             x, y = path[i]
 
-            # Establecer la posición (x, y) y una orientación predeterminada (sin rotación)
+            # Set position (x,y) and predetermined orientation (without rotation) 
             pose_stamped.pose.position.x = x
             pose_stamped.pose.position.y = y
             pose_stamped.pose.position.z = 0.0
 
-            # Agregar el PoseStamped al mensaje de Path
+            # Add PoseStamped to Path message
             path_msg.poses.append(pose_stamped)
 
-        # Publicar el mensaje de Path en el tópico
+        # Publish the Path message inn the topic 
         self._path_publisher.publish(path_msg)
 
-
-#
 
 
 def main(args=None):

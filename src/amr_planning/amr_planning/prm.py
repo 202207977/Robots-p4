@@ -89,27 +89,27 @@ class PRM:
         # TODO: 4.3. Complete the function body (i.e., replace the code below).
         
         # 1. Find the closest nodes to the start and goal points
-        posibles = self._graph.keys()
-        node_start = min(posibles, key = lambda k: self._distance(start, k))
-        node_goal = min(posibles, key = lambda k: self._distance(k, goal))
+        possibles = self._graph.keys()
+        node_start = min(possibles, key = lambda k: self._distance(start, k))
+        node_goal = min(possibles, key = lambda k: self._distance(k, goal))
 
         # 2. Initialize the open and closed lists
-        lista_abierta = {node_start: (self._distance(node_start, node_goal), 0)} # {(node): (f, g)}
-        lista_cerrada = set()
+        open_list = {node_start: (self._distance(node_start, node_goal), 0)} # {(node): (f, g)}
+        closed_list = set()
 
-        while lista_abierta:
+        while open_list:
 
             # 3a. Get the node with the lowest f-value
-            nodo_expandido = min(lista_abierta, key=lambda k: lista_abierta[k][0]) 
+            expanded_node = min(open_list, key=lambda k: open_list[k][0]) 
 
             # 3b. Get the node's g-value
-            g_value = lista_abierta[nodo_expandido][1]
-            del lista_abierta[nodo_expandido]
+            g_value = open_list[expanded_node][1]
+            del open_list[expanded_node]
 
-            # Comprobamos si es el nodo objetivo:
-            if nodo_expandido == node_goal:
+            # Check if it is the goal node:
+            if expanded_node == node_goal:
 
-                # Si se ha alcanzado el objetivo, se reconstruye el path
+                # If the goal has been reached, reconstruct the path 
                 if node_start != start:
                     ancestors[node_start] = start
                 if node_goal != goal:
@@ -117,31 +117,32 @@ class PRM:
 
                 return self._reconstruct_path(node_start, node_goal, ancestors)
 
-            # 3c. Añadir nodos abiertos a la lista
-            for nodo in self._graph[nodo_expandido]:
-                if nodo in lista_cerrada:
+            # 3c. Add open nodes to the list 
+            for node in self._graph[expanded_node]:
+                if node in closed_list:
                     continue
 
-                new_g = g_value + self._distance(nodo_expandido, nodo)
-                h = self._distance(nodo, node_goal)
+                new_g = g_value + self._distance(expanded_node, node)
+                h = self._distance(node, node_goal)
                 new_f = new_g + h
 
-                # Si no se ha alcanzado el nodo todavia
-                if not nodo in lista_abierta:
-                    lista_abierta[nodo] = (new_f, new_g)
-                    ancestors[nodo] = nodo_expandido
+                # If the node hadn´t been reached yet
+                if not node in open_list:
+                    open_list[node] = (new_f, new_g)
+                    ancestors[node] = expanded_node
                 
-                else:
-                    old_g = lista_abierta[nodo][1]
+                # If the node had been reached
+                else: 
+                    old_g = open_list[node][1]
 
-                    # Si ya se había alcanzado, se actualiza si el camino ahora es más corto
+                    # Update if the new path is shorter
                     if old_g > new_g:
-                        lista_abierta[nodo] = (new_f, new_g)
-                        ancestors[nodo] = nodo_expandido
+                        open_list[node] = (new_f, new_g)
+                        ancestors[node] = expanded_node
             
-            lista_cerrada.add(nodo_expandido)
+            closed_list.add(expanded_node)
 
-        # Si no se ha encontrado el goal
+        # If goal is not reached
         raise ValueError("Enable to find a path between start and goal.")
 
 
@@ -186,11 +187,11 @@ class PRM:
         
         original_path: list[tuple[float, float]] = copy.deepcopy(path)
 
-        # Interpolación de puntos extra si es necesario
+        # Interpolation of extra points if necessary 
         if additional_smoothing_points > 0:
             extended_path = []
             for i in range(len(path) - 1):
-                extended_path.append(path[i])  # Agregar punto original
+                extended_path.append(path[i])  # Add original point
 
                 for j in range(1, additional_smoothing_points + 1):
                     alpha = j / (additional_smoothing_points + 1)
@@ -199,32 +200,32 @@ class PRM:
 
                     extended_path.append((x_interpolated, y_interpolated))
 
-            extended_path.append(path[-1])  # Agregar último punto
+            extended_path.append(path[-1])  # Add last point
             original_path = copy.deepcopy(extended_path)
 
-        # Descenso del gradiente para suavizar la ruta
+        # Gradient descent to smooth the path 
         smoothed_path = copy.deepcopy(original_path)
-        change =  float('inf') # Inicializamos con un valor mayor al umbral
+        change =  float('inf') # Initialize threshold with a high value
         while change >= tolerance:
             change = 0
-            for i in range(1, len(smoothed_path) - 1):  # No modificamos el primer ni el último nodo
+            for i in range(1, len(smoothed_path) - 1):  # Do not modify the first nor last node
                 x, y = original_path[i]
 
-                # Calculamos la nueva posición de cada nodo
+                # Calculate new position of each node
                 curr_x, curr_y = smoothed_path[i]
 
-                # Cálculo de la suavización (promedio de los nodos adyacentes)
+                # Calculate smoothing (average of adjacent nodes)
                 prev_x, prev_y = smoothed_path[i - 1]
                 next_x, next_y = smoothed_path[i + 1]
 
-                # Suavización basada en el gradiente
+                # Smoothing based on the gradient
                 new_x = curr_x + data_weight * (x-curr_x) + smooth_weight * (prev_x + next_x - 2 * curr_x)
                 new_y = curr_y + data_weight * (y-curr_y) + smooth_weight * (prev_y + next_y - 2 * curr_y)
 
-                # Actualizamos el nodo
+                # Update the node
                 smoothed_path[i] = (new_x, new_y)
 
-                # Calculamos la diferencia entre la nueva y la antigua posición
+                # Calculate difference between new and previous position
                 change += math.sqrt((new_x - curr_x) ** 2 + (new_y - curr_y) ** 2)
 
         return smoothed_path
@@ -352,28 +353,29 @@ class PRM:
 
         """
         # TODO: 4.2. Complete the missing function body with your code.
-        # Obtener todos los nodos como una lista de tuplas
+
+        # Obtain all nodes as a list of tuples
         nodes = list(graph.keys())
 
-        # Iterar sobre cada nodo en el gráfico
+        # Iterate over each node in the graph
         for i, node_a in enumerate(nodes):
-            # Iterar sobre los nodos restantes para comprobar conexiones
+            # Iterate over the remaining nodes to check connections
             for j, node_b in enumerate(nodes):
                 
-                # No es necesario comparar el nodo con sí mismo ni con anteriores
+                # Not necessary to compare the node with itself or previous ones
                 if i >= j:
                     continue  
 
-                # Calcular la distancia entre los nodos
+                # Calculate distance between nodes
                 dist = self._distance(node_a, node_b)
 
-                # Si la distancia es menor o igual al umbral
+                # If the distance is equal or less than the connection_distance threshold
                 if dist <= connection_distance:
                     
-                    # Verificar si la línea entre los dos nodos cruza algún obstáculo
+                    # Then, verify wether the segment joining the two nodes crosses any obstacle
                     if not self._map.crosses([node_a, node_b]):
                         
-                        # Si no cruza, añadir la conexión en ambas direcciones
+                        # If it does not cross any obstacle, add connection in both directions
                         graph[node_a].append(node_b)
                         graph[node_b].append(node_a)
 
@@ -465,18 +467,19 @@ class PRM:
         path: list[tuple[float, float]] = []
 
         # TODO: 4.4. Complete the missing function body with your code.
-        # Empezamos desde el nodo objetivo
+        
+        # Start at the goal node
         current_node = goal
 
-        # Seguimos los ancestros hasta llegar al nodo de inicio
+        # Follow ancestors until reaching the initial node 
         while current_node != start:
             path.append(current_node)
             current_node = ancestors[current_node]
 
-        # Finalmente, agregamos el nodo de inicio
+        # Add initial node
         path.append(start)
 
-        # Invertir la lista para obtener el camino desde el inicio hasta el destino
+        # Invert the list to obtain the list from start to final goal 
         path.reverse()
 
         return path
