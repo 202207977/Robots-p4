@@ -104,24 +104,23 @@ class PurePursuit:
         """
         # TODO: 4.10. Complete the function body with your code (i.e., determine target_xy).
 
-        # Recortar el camino desde el índice actual
+        # Trim path from the current index
         path_segment = self._path[origin_idx:]
 
-        # Inicializamos el objetivo con el origen y la distancia previa
-        previous_point = origin_xy
-        previous_dist = 0.0
-
-        # Buscamos el lookahead point
+        # Search for lookahead point
         for i in range(1, len(path_segment)):
-            # Obtenemos el punto actual del camino
+            
+            # Get the current path point
             current_point = path_segment[i]
 
-            # Calcular la distancia acumulada desde el origen
+            # Calculate the accumulated distance from the origin
             dist_current = math.sqrt(
                 (current_point[0] - origin_xy[0]) ** 2 + (current_point[1] - origin_xy[1]) ** 2
             )
 
+            # If the accumulated distance reaches or exceeds the lookahead distance
             if dist_current >= self._lookahead_distance:
                 return current_point
-
+        
+        # If no point meets the lookahead distance condition, return the last point in the segment
         return path_segment[-1]

@@ -372,7 +372,7 @@ class PRM:
                 # If the distance is equal or less than the connection_distance threshold
                 if dist <= connection_distance:
                     
-                    # Then, verify wether the segment joining the two nodes crosses any obstacle
+                    # Verify wether the segment joining the two nodes crosses any obstacle
                     if not self._map.crosses([node_a, node_b]):
                         
                         # If it does not cross any obstacle, add connection in both directions
