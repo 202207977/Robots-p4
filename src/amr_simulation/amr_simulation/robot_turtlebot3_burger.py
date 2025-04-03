@@ -1,5 +1,6 @@
 from amr_simulation.robot import Robot
 from typing import Any
+import numpy as np
 
 
 class TurtleBot3Burger(Robot):
@@ -38,7 +39,7 @@ class TurtleBot3Burger(Robot):
         """
         # TODO: 2.1. Complete the function body with your code (i.e., replace the pass statement).
 
-        #b = self.TRACK / 2
+        # b = self.TRACK / 2
         phi_r = (v + (w * self.TRACK / 2)) / self.WHEEL_RADIUS
         phi_l = (v - (w * self.TRACK / 2)) / self.WHEEL_RADIUS
 
@@ -51,7 +52,6 @@ class TurtleBot3Burger(Robot):
         self._sim.setJointTargetVelocity(self._motors["right"], phi_r)
         self._sim.setJointTargetVelocity(self._motors["left"], phi_l)
 
-        
     def sense(self) -> tuple[list[float], float, float]:
         """Read the LiDAR and the encoders.
 
@@ -64,9 +64,6 @@ class TurtleBot3Burger(Robot):
         # Read LiDAR
         packed_data: str = self._sim.getBufferProperty(self._sim.handle_scene, "signal.lidar")
         z_scan: list[float] = self._sim.unpackFloatTable(packed_data)
-
-        # Return nan if the measurement failed
-        z_scan = [z if z >= 0.0 else float("nan") for z in z_scan]
 
         # Read encoders
         z_v, z_w = self._sense_encoders()
@@ -97,20 +94,20 @@ class TurtleBot3Burger(Robot):
         # Read the angular position increment in the last sampling period [rad]
         encoders: dict[str, float] = {}
 
-        encoders["left"] = self._sim.getFloatProperty(self._sim.handle_scene, "signal.leftEncoder") #delta phi left
-        encoders["right"] = self._sim.getFloatProperty( #delta phi right
+        encoders["left"] = self._sim.getFloatProperty(
+            self._sim.handle_scene, "signal.leftEncoder"
+        )  # delta phi left
+        encoders["right"] = self._sim.getFloatProperty(  # delta phi right
             self._sim.handle_scene, "signal.rightEncoder"
         )
 
         # TODO: 2.2. Compute the derivatives of the angular positions to obtain velocities [rad/s].
 
-        phi_left = encoders["left"]/self._dt
-        phi_right = encoders["right"]/self._dt
-
-        
+        phi_left = encoders["left"] / self._dt
+        phi_right = encoders["right"] / self._dt
 
         # TODO: 2.3. Solve forward differential kinematics (i.e., calculate z_v and z_w).
-        z_v = (phi_right + phi_left) * self.WHEEL_RADIUS / 2 #Vr
-        z_w = (phi_right - phi_left) * self.WHEEL_RADIUS / self.TRACK #wr
-        
+        z_v = (phi_right + phi_left) * self.WHEEL_RADIUS / 2  # Vr
+        z_w = (phi_right - phi_left) * self.WHEEL_RADIUS / self.TRACK  # wr
+
         return z_v, z_w

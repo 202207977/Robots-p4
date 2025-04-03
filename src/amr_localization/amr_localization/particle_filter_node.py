@@ -14,6 +14,7 @@ import traceback
 from transforms3d.euler import euler2quat
 
 from amr_localization.particle_filter import ParticleFilter
+from amr_localization.extended_kalman_filter import ExtendedKalmanFilter
 
 
 class ParticleFilterNode(LifecycleNode):
@@ -70,10 +71,13 @@ class ParticleFilterNode(LifecycleNode):
             # Attribute and object initializations
             self._localized = False
             self._steps = 0
+
+            # Load map
             map_path = os.path.realpath(
                 os.path.join(os.path.dirname(__file__), "..", "maps", world + ".json")
             )
 
+            # Initialize Particle Filter
             self._particle_filter = ParticleFilter(
                 dt,
                 map_path,
@@ -84,6 +88,16 @@ class ParticleFilterNode(LifecycleNode):
                 global_localization=global_localization,
                 initial_pose=initial_pose,
                 initial_pose_sigma=initial_pose_sigma,
+            )
+
+            # Initialize Extended Kalman Filter
+            self._ekf = ExtendedKalmanFilter(
+                dt,
+                map_path,
+                sigma_v=sigma_v,
+                sigma_w=sigma_w,
+                sigma_z=sigma_z,
+                initial_pose=initial_pose,
             )
 
             if self._enable_plot:
@@ -145,13 +159,24 @@ class ParticleFilterNode(LifecycleNode):
         z_w: float = odom_msg.twist.twist.angular.z
         z_scan: list[float] = scan_msg.ranges
 
-        # Execute particle filter
-        self._execute_motion_step(z_v, z_w)
-        x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
-        self._steps += 1
+        if True:  # not self._localized:
+            # Execute particle filter
+            self._execute_motion_step(z_v, z_w)
+            x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
+            self._steps += 1
 
-        # Publish
-        self._publish_pose_estimate(x_h, y_h, theta_h)
+            # if self._localized:
+            #     self._ekf.set_initial_state(x_h, y_h, theta_h)
+            #     self.get_logger().info("Localization achieved! Switching to EKF.")
+
+            # else:
+            #     # Ejecutar EKF
+            #     self._ekf.predict(z_v, z_w)
+            #     self._ekf.update(z_scan)
+            #     x_h, y_h, theta_h = self._ekf._state
+
+            # Publish
+            self._publish_pose_estimate(x_h, y_h, theta_h)
 
     def _execute_measurement_step(self, z_us: list[float]) -> tuple[float, float, float]:
         """Executes and monitors the measurement step (sense) of the particle filter.
@@ -165,20 +190,12 @@ class ParticleFilterNode(LifecycleNode):
         pose = (float("inf"), float("inf"), float("inf"))
 
         if self._localized or not self._steps % self._steps_btw_sense_updates:
-            start_time = time.perf_counter()
             self._particle_filter.resample(z_us)
-            sense_time = time.perf_counter() - start_time
-
-            self.get_logger().info(f"Sense step time: {sense_time:6.3f} s")
 
             if self._enable_plot:
                 self._particle_filter.show("Sense", save_figure=True)
 
-            start_time = time.perf_counter()
             self._localized, pose = self._particle_filter.compute_pose()
-            clustering_time = time.perf_counter() - start_time
-
-            self.get_logger().info(f"Clustering time: {clustering_time:6.3f} s")
 
         return pose
 
@@ -189,11 +206,7 @@ class ParticleFilterNode(LifecycleNode):
             z_v: Odometric estimate of the linear velocity of the robot center [m/s].
             z_w: Odometric estimate of the angular velocity of the robot center [rad/s].
         """
-        start_time = time.perf_counter()
         self._particle_filter.move(z_v, z_w)
-        move_time = time.perf_counter() - start_time
-
-        self.get_logger().info(f"Move step time: {move_time:7.3f} s")
 
         if self._enable_plot:
             self._particle_filter.show("Move", save_figure=True)

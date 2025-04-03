@@ -72,7 +72,7 @@ class WallFollowerNode(LifecycleNode):
             )
 
             ts.registerCallback(self._compute_commands_callback)
-            
+
             # Publishers
             # TODO: 2.10. Create the /cmd_vel velocity commands publisher (TwistStamped message).
 
@@ -116,7 +116,6 @@ class WallFollowerNode(LifecycleNode):
         """
         self.get_logger().info("Received messages.")
         if not pose_msg.localized:
-            
             # TODO: 2.8. Parse the odometry from the Odometry message (i.e., read z_v and z_w).
             z_v: float = odom_msg.twist.twist.linear.x
             z_w: float = odom_msg.twist.twist.angular.z

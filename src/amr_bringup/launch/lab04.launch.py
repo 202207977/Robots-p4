@@ -6,7 +6,7 @@ import math
 
 def generate_launch_description():
     world = "project"
-    start = (-1.0, -1.0, math.radians(90))
+    start = (-1.0, -1.0, math.radians(-90))
     goal = (-0.6, 1.0)
 
     particles = 100
@@ -78,7 +78,7 @@ def generate_launch_description():
         name="coppeliasim",
         namespace="",
         output="screen",
-        arguments=["--ros-args", "--log-level", "INFO"],
+        arguments=["--ros-args", "--log-level", "WARN"],
         parameters=[
             {
                 "enable_localization": True,

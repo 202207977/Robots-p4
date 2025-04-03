@@ -53,6 +53,9 @@ class ParticleFilter:
         self._sigma_z: float = sigma_z
         self._iteration: int = 0
         self._sensor_range_max_artificial = float(1)
+        self._global_localization = global_localization
+        self._initial_pose = initial_pose
+        self._initial_pose_sigma = initial_pose_sigma
 
         self._map = Map(
             map_path,
@@ -89,23 +92,41 @@ class ParticleFilter:
         clusters = len(set(scan.labels_)) - (1 if -1 in scan.labels_ else 0)
 
         if clusters == 1:
-            localized = True
-            self._particle_count = 100  # Reducir partículas para acelerar el cálculo
+            if not self._detect_incorrect_position():
+                localized = True
+                self._particle_count = 100  # Reducir partículas para acelerar el cálculo
 
-            angles = self._particles[:, 2]
+                angles = self._particles[:, 2]
 
-            # para evitar el problema de los angulos 0 y 2pi
-            unit_vectors = np.array([(np.cos(angle), np.sin(angle)) for angle in angles])
-            mean_vector = np.mean(unit_vectors, axis=0)
-            mean_angle = np.arctan2(mean_vector[1], mean_vector[0])
+                # para evitar el problema de los angulos 0 y 2pi
+                unit_vectors = np.array([(np.cos(angle), np.sin(angle)) for angle in angles])
+                mean_vector = np.mean(unit_vectors, axis=0)
+                mean_angle = np.arctan2(mean_vector[1], mean_vector[0])
 
-            pose = (
-                np.mean(self._particles[:, 0]),  # Promedio de X
-                np.mean(self._particles[:, 1]),  # Promedio de Y
-                (mean_angle + 2 * np.pi) % (2 * np.pi),  # Normalizar el ángulo entre 0 y 2π
-            )
+                pose = (
+                    np.mean(self._particles[:, 0]),  # Promedio de X
+                    np.mean(self._particles[:, 1]),  # Promedio de Y
+                    (mean_angle + 2 * np.pi) % (2 * np.pi),  # Normalizar el ángulo entre 0 y 2π
+                )
+            else:
+                self._particles = self._init_particles(
+                    particle_count=self._initial_particle_count,
+                    global_localization=self._global_localization,
+                    initial_pose=self._initial_pose,
+                    initial_pose_sigma=self._initial_pose_sigma,
+                )
 
         return localized, pose
+
+    def _detect_incorrect_position(self):
+        likelihood_mean = np.mean(self._weights)  # Verosimilitud media
+        threshold = 0.01  # Umbral para considerar que el robot está perdido
+
+        if likelihood_mean < threshold:
+            print("¡Robot perdido! Reiniciando partículas...")
+            return True
+
+        return False
 
     def move(self, v: float, w: float) -> None:
         """Performs a motion update on the particles.
@@ -147,12 +168,12 @@ class ParticleFilter:
         # TODO: 3.9. Complete the function body with your code (i.e., replace the pass statement).
 
         # Compute the weight of each particle based on the measurement probability
-        weights = np.array(
+        self._weights = np.array(
             [self._measurement_probability(measurements, particle) for particle in self._particles]
         )
 
         # Compute normalization
-        weights /= np.sum(weights)
+        weights = self._weights / np.sum(self._weights)
 
         # Compute the cumulative sum of weights for resampling
         cum_weights = np.cumsum(weights)
@@ -389,7 +410,7 @@ class ParticleFilter:
         probability = 1.0
         measurements_predicted = self._sense(particle=particle)
 
-        # # TODO: 3.8. Complete the missing function body with your code.
+        # TODO: 3.8. Complete the missing function body with your code.
 
         # Calcular la probabilidad acumulada
         for real, pred in zip(measurements[::30], measurements_predicted):
