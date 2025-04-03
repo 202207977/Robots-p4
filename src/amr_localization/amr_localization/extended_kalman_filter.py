@@ -87,7 +87,7 @@ class ExtendedKalmanFilter:
 
         self._covariance = Gt @ self._covariance @ Gt.T + self._Rt
 
-    def update(self, measurements: list[float]):
+    def correction(self, measurements: list[float]):
         """Updates the state estimate based on sensor measurements.
 
         Args:
@@ -95,18 +95,18 @@ class ExtendedKalmanFilter:
         """
 
         zt = measurements[::30]
-        z_hat, Ht = self._sense()
-        y = np.array(zt) - z_hat
-        y = y.reshape(-1, 1)
+        z_hat, Ht, Kt = self._correction_auxiliary()
+        dt = np.array(zt) - z_hat
 
-        S = Ht @ self._covariance @ Ht.T + self._Qt
-        K = self._covariance @ Ht.T @ np.linalg.inv(S)
-        print(K)
-        print(y)
-        self._state += K @ y
-        self._covariance = (np.eye(len(self._state)) - K @ Ht.T) @ self._covariance
+        for i in range(len(zt)):
+            real, pred = zt[i], z_hat[i]
+            Ht_i, Kt_i = Ht[i], Kt[i]
+            dt = real - pred
+            self._state += Kt_i @ np.array([[dt], [1]])
 
-    def _sense(self) -> list[float]:
+            self._covariance = (np.eye(len(self._state)) - Kt_i @ Ht_i.T) @ self._covariance
+
+    def _correction_auxiliary(self) -> list[float]:
         """Simulates sensor readings given the current state.
 
         Returns: List of predicted measurements; nan if a sensor is out of range.
@@ -116,16 +116,24 @@ class ExtendedKalmanFilter:
         rays = self._lidar_rays((x, y, theta), indices)
 
         z_hat = []
-        Ht = np.zeros((2, 3))
+        Ht = []  # lista de las Ht_i
+        Kt = []
+
         for ray in rays:
             object, distance = self._map.check_collision(ray, True)
             if distance is not None:
                 distance += np.random.normal(0.0, self._sigma_z)
-                Ht_i = self._predict_measurement(object, distance)
-                Ht.append(Ht_i)
-            z_hat.append(np.array(distance))
+            else:
+                distance = self._sensor_range_min
 
-        return np.array(z_hat)
+            Ht_i = self._compute_Ht_i(object, distance)
+            St_i = Ht_i @ self._covariance @ Ht_i.T + self._Qt
+            Kt_i = self._covariance @ Ht_i.T @ np.linalg.inv(St_i)
+            z_hat.append(np.array(distance))
+            Ht.append(Ht_i)
+            Kt.append(Kt_i)
+
+        return np.array(z_hat), Ht, Kt
 
     def _lidar_rays(
         self, pose: tuple[float, float, float], indices: tuple[float], degree_increment: float = 1.5
@@ -162,7 +170,7 @@ class ExtendedKalmanFilter:
     def set_initial_state(self, x, y, theta):
         self._state = x, y, theta
 
-    def _predict_measurement(self, object, distance):
+    def _compute_Ht_i(self, object, distance):
         """Predice la medición esperada phi_pred basada en el estado [x, y, theta].
 
         Args:
@@ -202,18 +210,29 @@ class ExtendedKalmanFilter:
     #     """
     #     Ht = np.zeros((2, 3))
 
-    #     measurements_predicted = self._sense()
+    #     z_hat = self._obtain_z_hat()
 
     #     # TODO: 3.8. Complete the missing function body with your code.
 
     #     # Calcular la probabilidad acumulada
-    #     for real, pred in zip(measurements[::30], measurements_predicted):
+    #     for real, pred in zip(measurements[::30], z_hat):
     #         if math.isnan(real):
     #             real = self._sensor_range_min
     #         if math.isnan(pred):
     #             pred = self._sensor_range_min
 
-    #         y = real - pred
+    #         dt = real - pred
     #         # probability *= prob
 
     #     return probability
+
+    # def process_noice_cov(self, u, dt) -> None:
+    #     """
+    #     Compute the process noise covriance using the control input
+    #     """
+
+    #     sigma_x2 = (self._sigma_v) ** 2
+    #     sigma_y2 = (self._sigma_v) ** 2 * 0.1  # much smaller than the noise in the x axis
+    #     sigma_theta2 = (self._sigma_w) ** 2
+
+    #     self._Rt = np.diag([sigma_x2, sigma_y2, sigma_theta2])
