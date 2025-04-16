@@ -92,7 +92,8 @@ class ParticleFilter:
         clusters = len(set(scan.labels_)) - (1 if -1 in scan.labels_ else 0)
 
         if clusters == 1:
-            if not self._detect_incorrect_position():
+            # if not self._detect_incorrect_position():
+            if True:
                 localized = True
                 self._particle_count = 100  # Reducir partículas para acelerar el cálculo
 
@@ -108,6 +109,15 @@ class ParticleFilter:
                     np.mean(self._particles[:, 1]),  # Promedio de Y
                     (mean_angle + 2 * np.pi) % (2 * np.pi),  # Normalizar el ángulo entre 0 y 2π
                 )
+
+                # Reducir las partículas a 100 usando la nueva pose
+                self._particles = self._init_particles(
+                    particle_count=self._particle_count,
+                    global_localization=False,
+                    initial_pose=pose,
+                    initial_pose_sigma=self._initial_pose_sigma,
+                )
+
             else:
                 self._particles = self._init_particles(
                     particle_count=self._initial_particle_count,
@@ -119,14 +129,24 @@ class ParticleFilter:
         return localized, pose
 
     def _detect_incorrect_position(self):
-        likelihood_mean = np.mean(self._weights)  # Verosimilitud media
-        threshold = 0.01  # Umbral para considerar que el robot está perdido
+        # likelihood_mean = np.mean(self._weights)  # Verosimilitud media
+        # threshold = 0.01  # Umbral para considerar que el robot está perdido
 
-        if likelihood_mean < threshold:
-            print("¡Robot perdido! Reiniciando partículas...")
-            return True
+        # if likelihood_mean < threshold:
+        #     print("¡Robot perdido! Reiniciando partículas...")
+        #     return True
 
-        return False
+        # return False
+
+        # Normalizamos los pesos por si no lo están
+        weights = self._weights / np.sum(self._weights)
+
+        # Medida de "confianza" en los pesos: entropía o ratio entre máx y suma
+        max_weight = np.max(weights)
+        weight_entropy = -np.sum(weights * np.log(weights + 1e-10))  # entropía con estabilidad numérica
+
+        # Criterios: si el peso máximo es muy bajo, o la entropía es muy alta → mala localización
+        return max_weight < 0.05 or weight_entropy > 3.5
 
     def move(self, v: float, w: float) -> None:
         """Performs a motion update on the particles.
@@ -144,7 +164,8 @@ class ParticleFilter:
             w_norm = np.random.normal(w, self._sigma_w)
 
             x, y, theta = particle
-            theta += w_norm * self._dt % (2 * np.pi)
+            ############################## AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+            theta = (theta + w_norm * self._dt) % (2 * np.pi) # += w_norm * self._dt % (2 * np.pi)
 
             pos_x = x + v_norm * np.cos(theta) * self._dt
             pos_y = y + v_norm * np.sin(theta) * self._dt

@@ -159,21 +159,22 @@ class ParticleFilterNode(LifecycleNode):
         z_w: float = odom_msg.twist.twist.angular.z
         z_scan: list[float] = scan_msg.ranges
 
-        if not self._localized:
-            # Execute particle filter
-            self._execute_motion_step(z_v, z_w)
-            x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
-            self._steps += 1
+        # if not self._localized:
+            
+        # Execute particle filter
+        self._execute_motion_step(z_v, z_w)
+        x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
+        self._steps += 1
 
-            if self._localized:
-                self._ekf.set_initial_state(x_h, y_h, theta_h)
-                self.get_logger().info("Localization achieved! Switching to EKF.")
+            # if self._localized:
+            #     self._ekf.set_initial_state(x_h, y_h, theta_h)
+            #     self.get_logger().info("Localization achieved! Switching to EKF.")
 
-        else:
-            # Ejecutar EKF
-            self._ekf.predict(z_v, z_w)
-            self._ekf.correction(z_scan)
-            x_h, y_h, theta_h = self._ekf._state
+            # else:
+            #     # Ejecutar EKF
+            #     self._ekf.predict(z_v, z_w)
+            #     self._ekf.correction(z_scan)
+            #     x_h, y_h, theta_h = self._ekf._state
 
         # Publish
         self._publish_pose_estimate(x_h, y_h, theta_h)
@@ -187,16 +188,16 @@ class ParticleFilterNode(LifecycleNode):
         Returns:
             Pose estimate (x_h, y_h, theta_h) [m, m, rad]; inf if cannot be computed.
         """
+        
         pose = (float("inf"), float("inf"), float("inf"))
 
         if self._localized or not self._steps % self._steps_btw_sense_updates:
             self._particle_filter.resample(z_us)
-
             if self._enable_plot:
                 self._particle_filter.show("Sense", save_figure=True)
 
             self._localized, pose = self._particle_filter.compute_pose()
-
+            
         return pose
 
     def _execute_motion_step(self, z_v: float, z_w: float):

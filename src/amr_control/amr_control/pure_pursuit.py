@@ -1,5 +1,5 @@
 import math
-
+import numpy as np
 
 class PurePursuit:
     """Class to follow a path using a simple pure pursuit controller."""
@@ -14,6 +14,9 @@ class PurePursuit:
         """
         self._dt: float = dt
         self._lookahead_distance: float = lookahead_distance
+        
+        # Se implementa lookahead adaptativa
+        self._lookahead_distance_adaptative: float = lookahead_distance
         self._path: list[tuple[float, float]] = []
 
     def compute_commands(self, x: float, y: float, theta: float) -> tuple[float, float]:
@@ -30,41 +33,33 @@ class PurePursuit:
         """
 
         # TODO: 4.11. Complete the function body with your code (i.e., compute v and w).
+        ###################################################
+        v = 0.0
+        w = 0.0
 
-        # Avoid issues if the path is not defined
-        if not self.path:
-            return 0.0, 0.0
+        # If we don't have path yet, the velocities are zero
+        if  self._path:
 
-        # Find the closest point on the path
-        _, closest_idx = self._find_closest_point(x, y)
+            v = 0.21
+            # Find the closest point to the robot
+            # If the point is the goal, we can stop
+            _, closest_idx = self._find_closest_point(x, y)
 
-        # Find the target point on the path using the lookahead distance
-        goal_x, goal_y = self._find_target_point((x, y), closest_idx)
+            # Compute the target point
+            target_xy = self._find_target_point((x, y), closest_idx)
 
-        # Calculate the error angle with respect to the target point
-        alpha = math.atan2(goal_y - y, goal_x - x) - theta
+            # Get angle the robot should have to reach the target point
+            beta = np.arctan2(target_xy[1] - y, target_xy[0] - x)
+            
+            # Compute ω to turn towards the target
+            alpha = beta - theta
+            
+            w = 2 * v * np.sin(beta - theta) / self._lookahead_distance
 
-        # Normalize alpha to be within [-pi, pi] to avoid large angles
-        alpha = (alpha + math.pi) % (2 * math.pi) - math.pi
+            # If the angle is too big, stop the robot. And only move forward if the angle is small
+            if abs(np.sin(abs(alpha))) > 0.7:
+                v = 0.0
 
-        # Modificar la velocidad lineal en función de alpha
-        v_max = 0.22
-        v_min = 0.15
-        k_v = 2.0
-        v = v_max * math.exp(-k_v * abs(alpha)) + v_min
-
-        # Ensure the velocity is reasonable, even if alpha is small
-        if v < 0.17:
-            v = 0.17  # Ensure the robot doesn't stop completely
-
-        # Modificar la distancia de anticipación en función de alpha
-        # lookahead_min = 0.2
-        # lookahead_max = 1.0
-        # k_l = 1.5
-        # self._lookahead_distance = lookahead_max / (1 + k_l * abs(alpha)) + lookahead_min
-
-        # Apply the pure pursuit equation to compute omega
-        w = 2 * v * math.sin(alpha) / self._lookahead_distance  # Curvature
 
         return v, w
 

@@ -10,7 +10,9 @@ def generate_launch_description():
     goal = (-0.6, 1.0)
 
     start = (-1.0, -1.0, math.radians(90))
+    start = (1.0, 1.0, math.radians(-90))
     goal = (1.0, -1.0)
+    goal = (-1.0, 0.6)
 
     particle_filter_node = LifecycleNode(
         package="amr_localization",
@@ -46,11 +48,12 @@ def generate_launch_description():
                 "goal": goal,
                 "grid_size": 0.1,
                 "node_count": 250,
-                "obstacle_safety_distance": 0.14,
+                "obstacle_safety_distance": 0.16, #0.14,
                 "smoothing_additional_points": 3,
                 "smoothing_data_weight": 0.1,
                 "smoothing_smooth_weight": 0.25,
                 "use_grid": True,
+
                 "world": world,
             }
         ],
@@ -73,7 +76,7 @@ def generate_launch_description():
         namespace="",
         output="screen",
         arguments=["--ros-args", "--log-level", "WARN"],
-        parameters=[{"lookahead_distance": 0.25}],
+        parameters=[{"lookahead_distance": 0.25}], 
     )
 
     coppeliasim_node = LifecycleNode(

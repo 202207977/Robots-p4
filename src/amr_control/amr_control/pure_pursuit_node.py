@@ -89,7 +89,7 @@ class PurePursuitNode(LifecycleNode):
 
             # Execute pure pursuit
             v, w = self._pure_pursuit.compute_commands(x, y, theta)
-            self.get_logger().info(f"Commands: v = {v:.3f} m/s, w = {w:+.3f} rad/s")
+            self.get_logger().info(f"PurePursuit: Commands: v = {v:.3f} m/s, w = {w:+.3f} rad/s")
 
             # Publish
             self._publish_velocity_commands(v, w)
