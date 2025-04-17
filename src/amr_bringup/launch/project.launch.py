@@ -6,11 +6,12 @@ import math
 
 def generate_launch_description():
     world = "project"
-    start = (-1.0, -1.0, math.radians(90))
+    start = (-1.0, -1.0, math.radians(-90))
     goal = (-0.6, 1.0)
 
     start = (-1.0, -1.0, math.radians(90))
-    start = (1.0, 1.0, math.radians(-90))
+    start = (-0.2, -0.2, math.radians(0))
+
     goal = (1.0, -1.0)
     goal = (-1.0, 0.6)
 
@@ -75,7 +76,7 @@ def generate_launch_description():
         name="pure_pursuit",
         namespace="",
         output="screen",
-        arguments=["--ros-args", "--log-level", "WARN"],
+        arguments=["--ros-args", "--log-level", "INFO"],
         parameters=[{"lookahead_distance": 0.25}], 
     )
 

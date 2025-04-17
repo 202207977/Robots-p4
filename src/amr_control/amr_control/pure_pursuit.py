@@ -18,6 +18,7 @@ class PurePursuit:
         # Se implementa lookahead adaptativa
         self._lookahead_distance_adaptative: float = lookahead_distance
         self._path: list[tuple[float, float]] = []
+        self._girando = False
 
     def compute_commands(self, x: float, y: float, theta: float) -> tuple[float, float]:
         """Pure pursuit controller implementation.
@@ -41,6 +42,7 @@ class PurePursuit:
         if  self._path:
 
             v = 0.21
+
             # Find the closest point to the robot
             # If the point is the goal, we can stop
             _, closest_idx = self._find_closest_point(x, y)
@@ -50,17 +52,28 @@ class PurePursuit:
 
             # Get angle the robot should have to reach the target point
             beta = np.arctan2(target_xy[1] - y, target_xy[0] - x)
-            
-            # Compute ω to turn towards the target
-            alpha = beta - theta
-            
-            w = 2 * v * np.sin(beta - theta) / self._lookahead_distance
 
-            # If the angle is too big, stop the robot. And only move forward if the angle is small
-            if abs(np.sin(abs(alpha))) > 0.7:
+
+            
+            # Calculamos y normalizamos alpha
+            alpha = beta - theta
+            alpha = (alpha + np.pi) % (2 * np.pi) - np.pi
+
+            # Compute ω to turn towards the target
+            w = 2 * v * np.sin(alpha) / self._lookahead_distance
+
+            if abs(alpha) > 135*np.pi/180:  # 135º en radianes
+                self._girando = True
+                w = 1.0
+
+            if self._girando and abs(alpha) < 20*np.pi/180: # 20 grados en radianes
+                self._girando = False   # giro completado (seguir adelante)
+
+            # If the angle is too big or was performing a 180º turn, stop the robot. And only move forward if the angle is small
+            if self._girando: 
                 v = 0.0
 
-
+            
         return v, w
 
     @property

@@ -78,11 +78,12 @@ class PRM:
 
         """
         # Check if the target points are valid
-        if not self._map.contains(start):
-            raise ValueError("Start location is outside the environment.")
+        # if not self._map.contains(start):
 
-        if not self._map.contains(goal):
-            raise ValueError("Goal location is outside the environment.")
+        #     raise ValueError("Start location is outside the environment.")
+
+        # if not self._map.contains(goal):
+        #     raise ValueError("Goal location is outside the environment.")
 
         ancestors: dict[tuple[float, float], tuple[float, float]] = {}  # {(x, y): (x_prev, y_prev)}
 
@@ -127,7 +128,7 @@ class PRM:
                 new_f = new_g + h
 
                 # If the node hadn´t been reached yet
-                if not node in open_list:
+                if node not in open_list:
                     open_list[node] = (new_f, new_g)
                     ancestors[node] = expanded_node
                 
