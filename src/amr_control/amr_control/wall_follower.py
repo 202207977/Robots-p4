@@ -16,7 +16,6 @@ class WallFollower:
         
         self._error_sum = 0.0
         self._previous_error = 0.0
-        
 
         # State flags for maneuvering
         self._turning_left = False
@@ -53,7 +52,7 @@ class WallFollower:
             self._escape_mode = True
         
 
-        # Perform 180-degree escape turn
+        # Perform 180-degree turn
         if self._escape_mode:
             self._rotation_progress += self._dt
             if self._rotation_progress >= math.pi: 
