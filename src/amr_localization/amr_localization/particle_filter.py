@@ -92,61 +92,33 @@ class ParticleFilter:
         clusters = len(set(scan.labels_)) - (1 if -1 in scan.labels_ else 0)
 
         if clusters == 1:
-            # if not self._detect_incorrect_position():
-            if True:
-                localized = True
-                self._particle_count = 100  # Reducir partículas para acelerar el cálculo
+            localized = True
+            self._particle_count = 100  # Reducir partículas para acelerar el cálculo
 
-                angles = self._particles[:, 2]
+            angles = self._particles[:, 2]
 
-                # para evitar el problema de los angulos 0 y 2pi
-                unit_vectors = np.array([(np.cos(angle), np.sin(angle)) for angle in angles])
-                mean_vector = np.mean(unit_vectors, axis=0)
-                mean_angle = np.arctan2(mean_vector[1], mean_vector[0])
+            # para evitar el problema de los angulos 0 y 2pi
+            unit_vectors = np.array([(np.cos(angle), np.sin(angle)) for angle in angles])
+            mean_vector = np.mean(unit_vectors, axis=0)
+            mean_angle = np.arctan2(mean_vector[1], mean_vector[0])
 
-                pose = (
-                    np.mean(self._particles[:, 0]),  # Promedio de X
-                    np.mean(self._particles[:, 1]),  # Promedio de Y
-                    (mean_angle + 2 * np.pi) % (2 * np.pi),  # Normalizar el ángulo entre 0 y 2π
-                )
+            pose = (
+                np.mean(self._particles[:, 0]),  # Promedio de X
+                np.mean(self._particles[:, 1]),  # Promedio de Y
+                (mean_angle + 2 * np.pi) % (2 * np.pi),  # Normalizar el ángulo entre 0 y 2π
+            )
 
-                # Reducir las partículas a 100 usando la nueva pose
-                self._particles = self._init_particles(
-                    particle_count=self._particle_count,
-                    global_localization=False,
-                    initial_pose=pose,
-                    initial_pose_sigma=self._initial_pose_sigma,
-                )
+            # Reducir las partículas a 100 usando la nueva pose
+            self._particles = self._init_particles(
+                particle_count=self._particle_count,
+                global_localization=False,
+                initial_pose=pose,
+                initial_pose_sigma=self._initial_pose_sigma,
+            )
 
-            else:
-                self._particles = self._init_particles(
-                    particle_count=self._initial_particle_count,
-                    global_localization=self._global_localization,
-                    initial_pose=self._initial_pose,
-                    initial_pose_sigma=self._initial_pose_sigma,
-                )
 
         return localized, pose
 
-    def _detect_incorrect_position(self):
-        # likelihood_mean = np.mean(self._weights)  # Verosimilitud media
-        # threshold = 0.01  # Umbral para considerar que el robot está perdido
-
-        # if likelihood_mean < threshold:
-        #     print("¡Robot perdido! Reiniciando partículas...")
-        #     return True
-
-        # return False
-
-        # Normalizamos los pesos por si no lo están
-        weights = self._weights / np.sum(self._weights)
-
-        # Medida de "confianza" en los pesos: entropía o ratio entre máx y suma
-        max_weight = np.max(weights)
-        weight_entropy = -np.sum(weights * np.log(weights + 1e-10))  # entropía con estabilidad numérica
-
-        # Criterios: si el peso máximo es muy bajo, o la entropía es muy alta → mala localización
-        return max_weight < 0.05 or weight_entropy > 3.5
 
     def move(self, v: float, w: float) -> None:
         """Performs a motion update on the particles.
@@ -160,24 +132,32 @@ class ParticleFilter:
 
         # TODO: 3.5. Complete the function body with your code.
         for particle in self._particles:
-            v_norm = np.random.normal(v, self._sigma_v)
-            w_norm = np.random.normal(w, self._sigma_w)
+            
+            # Se generan velocidades con ruido gaussiano
+            noisy_w = np.random.normal(w, self._sigma_w)
+            noisy_v = np.random.normal(v, self._sigma_v)
+            
 
             x, y, theta = particle
-            ############################## AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-            theta = (theta + w_norm * self._dt) % (2 * np.pi) # += w_norm * self._dt % (2 * np.pi)
+            
+            # Actualizamos y normalizamos angulo entre 0 y 2pi
+            theta = (theta + noisy_w * self._dt) % (2 * np.pi)                                                                  
 
-            pos_x = x + v_norm * np.cos(theta) * self._dt
-            pos_y = y + v_norm * np.sin(theta) * self._dt
+            # Se actualiza la posición según las velocidades y el ángulo actual
+            delta_x = noisy_v * np.cos(theta) * self._dt
+            delta_y = noisy_v * np.sin(theta) * self._dt
 
-            if not self._map.contains((pos_x, pos_y)):
-                obstacle, _ = self._map.check_collision([(x, y), (x + pos_x, y + pos_y)])
+            new_x = x + delta_x
+            new_y = y + delta_y
+
+            # Corregimos si se ha ido fuera del mapa
+            if not self._map.contains((new_x, new_y)):
+                obstacle, _ = self._map.check_collision([(x, y), (new_x, new_y)])
                 if obstacle:
-                    pos_x, pos_y = obstacle
+                    new_x, new_y = obstacle
 
-            particle[0] = pos_x
-            particle[1] = pos_y
-            particle[2] = theta
+            # Se actualiza la posicion de la partícula
+            particle = (new_x, new_y, theta)
 
     def resample(self, measurements: list[float]) -> None:
         """Samples a new set of particles.
@@ -355,7 +335,7 @@ class ParticleFilter:
 
         # Vemos si nos quedamos con los rayos
         for ray in rays:
-            obstacle, distance = self._map.check_collision(ray, True)
+            _, distance = self._map.check_collision(ray, True)
 
             if distance is not None:
                 distance += random.gauss(0.0, self._sigma_z)

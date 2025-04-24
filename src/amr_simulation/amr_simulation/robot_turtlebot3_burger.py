@@ -96,8 +96,8 @@ class TurtleBot3Burger(Robot):
 
         encoders["left"] = self._sim.getFloatProperty(
             self._sim.handle_scene, "signal.leftEncoder"
-        )  # delta phi left
-        encoders["right"] = self._sim.getFloatProperty(  # delta phi right
+        ) 
+        encoders["right"] = self._sim.getFloatProperty( 
             self._sim.handle_scene, "signal.rightEncoder"
         )
 

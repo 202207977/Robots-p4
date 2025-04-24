@@ -59,7 +59,7 @@ class CoppeliaSimNode(LifecycleNode):
             # Subscribers
             # TODO: 2.12. Subscribe to /cmd_vel. Connect it with with _next_step_callback.
             if not enable_localization:
-                self._cmd_vel_subscription = self.create_subscription(
+                self._cmd_vel_subscriber = self.create_subscription(
                     msg_type=TwistStamped,
                     topic="/cmd_vel",
                     callback=self._next_step_callback,
@@ -156,7 +156,7 @@ class CoppeliaSimNode(LifecycleNode):
 
         self.get_logger().info(f"Odometry: z_v = {z_v:.3f} m/s, w = {z_w:+.3f} rad/s")
 
-        # Check goal
+        # If we have reached the goal
         if self._check_goal():
             return
 
@@ -228,6 +228,7 @@ class CoppeliaSimNode(LifecycleNode):
 
         return goal_found
 
+
     def _print_statistics(self, execution_time: float, simulated_time: float, steps: int) -> None:
         """Outputs a ROS log message to the Terminal with a summary of timing statistics.
 
@@ -245,6 +246,7 @@ class CoppeliaSimNode(LifecycleNode):
         except ZeroDivisionError:
             pass
 
+
     def _publish_odometry(self, z_v: float, z_w: float) -> None:
         """Publishes odometry measurements in a nav_msgs.msg.Odometry message.
 
@@ -259,7 +261,7 @@ class CoppeliaSimNode(LifecycleNode):
         msg.twist.twist.linear.x = z_v
         msg.twist.twist.angular.z = z_w
 
-        self._odometry_publisher.publish(msg)  # publish the message
+        self._odometry_publisher.publish(msg) 
 
     def _publish_scan(self, z_scan: list[float]) -> None:
         """Publishes LiDAR measurements in a sensor_msgs.msg.LaserScan message.
@@ -270,10 +272,10 @@ class CoppeliaSimNode(LifecycleNode):
         """
         # TODO: 2.6. Complete the function body with your code (i.e., replace the pass statement).
         msg = LaserScan()
-        msg.header.stamp = self.get_clock().now().to_msg()  # metadatos
+        msg.header.stamp = self.get_clock().now().to_msg()
 
-        msg.ranges = z_scan  # distance data
-        self._laser_scan_publisher.publish(msg)  # publish the message
+        msg.ranges = z_scan
+        self._laser_scan_publisher.publish(msg) 
 
 
 def main(args=None):

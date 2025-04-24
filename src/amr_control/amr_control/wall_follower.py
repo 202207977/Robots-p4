@@ -3,25 +3,26 @@ import numpy as np
 
 class WallFollower:
     def __init__(self, dt: float) -> None:
-        """Inicializador de la clase WallFollower.
+        """Initializes the Wall Follower controller."""
 
-        Args:
-            dt: Periodo de muestreo [s].
-        """
         self._dt: float = dt
-        self._distancia_objetivo = 0.2  # queremos estar a esta distancia de la pared [m]
-        self.Kp = 2  # ganancia para correcciones en la trayectoria
-        self.Kd = 1  # ganancia para suavizar el movimiento
-        self.Ki = 0.005  # ganancia para corregir errores acumulados
-        self.error_integral = 0.0
-        self.error_anterior = 0.0
-        self._distancia_seguridad = 0.22  
+        self._target_distance   = 0.2  
+        self._safety_threshold   = 0.22  
 
-        # Modos para decidir cómo girar o si estamos atrapados
-        self._modo_giro_izquierda = False
-        self._modo_giro_derecha = False
-        self._modo_callejon_salida = False
-        self._giro_completado = 0.0
+        # PID control parameters
+        self._Kp = 2.0  
+        self._Ki = 0.005  
+        self._Kd = 1.0  
+        
+        self._error_sum = 0.0
+        self._previous_error = 0.0
+        
+
+        # State flags for maneuvering
+        self._turning_left = False
+        self._turning_right = False
+        self._escape_mode = False
+        self._rotation_progress = 0.0
 
     def compute_commands(self, z_scan: list[float], z_v: float, z_w: float) -> tuple[float, float]:
         """Algoritmo de seguimiento de paredes.
@@ -38,72 +39,66 @@ class WallFollower:
         z_scan = np.array(z_scan)
         z_scan = np.where(np.isnan(z_scan), 9.0, z_scan)
 
-        distancia_frontal = z_scan[0]  
-        distancia_izquierda = z_scan[59] 
-        distancia_derecha = z_scan[-59] 
+        forward_dist = z_scan[0] 
+        right_dist = z_scan[-59]  
+        left_dist = z_scan[59] 
+        
 
-        # Valor inicial de la velocidad
+        # Set initial velocity values
         z_v = 0.15  
         z_w = 0.0
 
-        # 1. Si estamos atrapados, girar.
-        if (distancia_frontal <= self._distancia_seguridad
-            and distancia_izquierda <= 0.23
-            and distancia_derecha <= 0.23
-        ):
-            self._modo_callejon_salida = True
+        # Check if robot is trapped
+        if forward_dist < self._safety_threshold and left_dist < 0.23 and right_dist < 0.23:
+            self._escape_mode = True
+        
 
-        # Giro de 180 grados para salir 
-        if self._modo_callejon_salida:
-            z_v = 0.0
-            z_w = 1.0  
-            self._giro_completado += abs(z_w) * self._dt
-            if self._giro_completado >= math.pi:  # giro de 180 grados
-                self._modo_callejon_salida = False
-                self.error_anterior = 0
-                self.error_integral = 0
-                self._giro_completado = 0.0
-            return z_v, z_w
+        # Perform 180-degree escape turn
+        if self._escape_mode:
+            self._rotation_progress += self._dt
+            if self._rotation_progress >= math.pi: 
+                self._reset_states()
+            return 0.0, 1.0
 
-        # 2. Si hay un obstáculo al frente, decidimos a qué lado girar
-        if distancia_frontal <= self._distancia_seguridad:
-            if distancia_derecha >= distancia_izquierda:
-                self._modo_giro_derecha = True
+        # Decide turn direction based on obstacle proximity
+        if forward_dist <= self._safety_threshold:
+            if right_dist <= left_dist:
+                self._turning_left = True
             else:
-                self._modo_giro_izquierda = True
+                self._turning_right = True
+               
 
-        # 3. Si vamos a girar a la derecha
-        if self._modo_giro_derecha:
-            z_v = 0.0
-            z_w = -1.0
-            self._giro_completado += abs(z_w) * self._dt
-            if self._giro_completado >= math.pi / 2:  
-                self._modo_giro_derecha = False
-                self.error_anterior = 0
-                self.error_integral = 0
-                self._giro_completado = 0.0
-            return z_v, z_w
+        # Execute right turn
+        if self._turning_right:
+            self._rotation_progress += self._dt
+            if self._rotation_progress  >= math.pi / 2: 
+                self._reset_states() 
+            return 0.0, -1.0
 
-        # 4. Si vamos a girar a la izquierda
-        elif self._modo_giro_izquierda:
-            z_v = 0.0
-            z_w = 1.0
-            self._giro_completado += abs(z_w) * self._dt
-            if self._giro_completado >= math.pi / 2:
-                self._modo_giro_izquierda = False
-                self.error_anterior = 0
-                self.error_integral = 0
-                self._giro_completado = 0.0
-            return z_v, z_w
+        # Execute left turn
+        if self._turning_left:
+            self._rotation_progress  += self._dt
+            if self._rotation_progress  >= math.pi / 2:
+                self._reset_states() 
+            return 0.0, 1.0
 
-        # 5. Si no hay obstáculos cercanos, usamos un control PID para mantener la distancia a la pared
-        if abs(distancia_izquierda - distancia_derecha) < 0.2:
-            error = distancia_izquierda - self._distancia_objetivo  # cuánto nos estamos alejando de la pared
-            derivada = (error - self.error_anterior) / self._dt
-            self.error_integral += error * self._dt
+        # Wall following using PID control when path is mostly clear
+        if abs(right_dist  - left_dist ) < 0.2:
+            error = left_dist - self._target_distance
+            derivative = (error - self._previous_error) / self._dt
+            self._error_sum += error * self._dt
 
             # Control PID para ajustar el giro
-            z_w = self.Kp * error + self.Kd * derivada + self.Ki * self.error_integral
-            self.error_anterior = error
-
+            z_w = self._Kp * error + self._Ki * self._error_sum + self._Kd * derivative
+            self._previous_error = error
+        
         return z_v, z_w
+    
+    def _reset_states(self):
+        """Resets internal flags and error accumulations."""
+        self._turning_right = False
+        self._turning_left = False
+        self._escape_mode = False
+        self._rotation_progress = 0.0
+        self._error_sum = 0.0
+        self._previous_error = 0.0

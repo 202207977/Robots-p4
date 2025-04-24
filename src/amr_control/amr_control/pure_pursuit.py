@@ -39,8 +39,7 @@ class PurePursuit:
         w = 0.0
 
         # If we don't have path yet, the velocities are zero
-        if  self._path:
-
+        if self._path:
             v = 0.21
 
             # Find the closest point to the robot
@@ -53,8 +52,6 @@ class PurePursuit:
             # Get angle the robot should have to reach the target point
             beta = np.arctan2(target_xy[1] - y, target_xy[0] - x)
 
-
-            
             # Calculamos y normalizamos alpha
             alpha = beta - theta
             alpha = (alpha + np.pi) % (2 * np.pi) - np.pi
@@ -66,7 +63,7 @@ class PurePursuit:
                 self._girando = True
                 w = 1.0
 
-            if self._girando and abs(alpha) < 20*np.pi/180: # 20 grados en radianes
+            if self._girando and abs(alpha) < 15*np.pi/180: # 20 grados en radianes
                 self._girando = False   # giro completado (seguir adelante)
 
             # If the angle is too big or was performing a 180º turn, stop the robot. And only move forward if the angle is small

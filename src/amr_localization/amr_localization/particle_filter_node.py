@@ -14,7 +14,6 @@ import traceback
 from transforms3d.euler import euler2quat
 
 from amr_localization.particle_filter import ParticleFilter
-from amr_localization.extended_kalman_filter import ExtendedKalmanFilter
 
 
 class ParticleFilterNode(LifecycleNode):
@@ -90,15 +89,6 @@ class ParticleFilterNode(LifecycleNode):
                 initial_pose_sigma=initial_pose_sigma,
             )
 
-            # Initialize Extended Kalman Filter
-            self._ekf = ExtendedKalmanFilter(
-                dt,
-                map_path,
-                sigma_v=sigma_v,
-                sigma_w=sigma_w,
-                sigma_z=sigma_z,
-                initial_pose=initial_pose,
-            )
 
             if self._enable_plot:
                 self._particle_filter.show("Initialization", save_figure=True)
@@ -159,22 +149,10 @@ class ParticleFilterNode(LifecycleNode):
         z_w: float = odom_msg.twist.twist.angular.z
         z_scan: list[float] = scan_msg.ranges
 
-        # if not self._localized:
-            
         # Execute particle filter
         self._execute_motion_step(z_v, z_w)
         x_h, y_h, theta_h = self._execute_measurement_step(z_scan)
         self._steps += 1
-
-            # if self._localized:
-            #     self._ekf.set_initial_state(x_h, y_h, theta_h)
-            #     self.get_logger().info("Localization achieved! Switching to EKF.")
-
-            # else:
-            #     # Ejecutar EKF
-            #     self._ekf.predict(z_v, z_w)
-            #     self._ekf.correction(z_scan)
-            #     x_h, y_h, theta_h = self._ekf._state
 
         # Publish
         self._publish_pose_estimate(x_h, y_h, theta_h)

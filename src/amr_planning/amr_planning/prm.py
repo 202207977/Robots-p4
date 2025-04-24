@@ -43,6 +43,7 @@ class PRM:
             connection_distance: Maximum distance to consider adding an edge between two nodes [m].
             sensor_range_max: Sensor measurement range [m].
         """
+        
         self._map: Map = Map(
             map_path,
             sensor_range=sensor_range_max,
