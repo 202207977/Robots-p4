@@ -34,7 +34,6 @@ class PurePursuit:
         """
 
         # TODO: 4.11. Complete the function body with your code (i.e., compute v and w).
-        ###################################################
         v = 0.0
         w = 0.0
 
@@ -63,7 +62,7 @@ class PurePursuit:
                 self._girando = True
                 w = 1.0
 
-            if self._girando and abs(alpha) < 15*np.pi/180: # 20 grados en radianes
+            if self._girando and abs(alpha) < 10*np.pi/180: # 10 grados en radianes
                 self._girando = False   # giro completado (seguir adelante)
 
             # If the angle is too big or was performing a 180º turn, stop the robot. And only move forward if the angle is small
